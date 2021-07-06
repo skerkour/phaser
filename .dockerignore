@@ -1,0 +1,7 @@
+.venv
+/Dockerfile
+
+/phaser/_data/
+/phaser/dist/
+/phaser/.env
+/phaser/target/
