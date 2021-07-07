@@ -31,7 +31,10 @@ struct WebArchiveResponse(Vec<Vec<String>>);
 #[async_trait]
 impl SubdomainModule for WebArchive {
     async fn enumerate(&self, domain: &str) -> Result<Vec<String>, Error> {
-        let url = format!("https://web.archive.org/cdx/search/cdx?matchType=domain&fl=original&output=json&collapse=urlkey&url={}", domain);
+        let url = format!(
+            "https://web.archive.org/cdx/search/cdx?matchType=domain&fl=original&output=json&collapse=urlkey&url={}",
+            domain
+        );
         let res = reqwest::get(&url).await?;
 
         if !res.status().is_success() {

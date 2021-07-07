@@ -1,11 +1,10 @@
-use serde::{Deserialize, Serialize};
 use crate::profile::Profile;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Report {
     pub target: String,
     pub profile: Profile,
-
 }
 
 // scan result {
@@ -39,5 +38,5 @@ pub enum Protocol {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Finding {
-    Url(String)
+    Url(String),
 }

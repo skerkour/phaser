@@ -8,6 +8,23 @@ pub struct Profile {
     pub modules: Vec<ModuleName>,
 }
 
+impl Default for Profile {
+    fn default() -> Self {
+        Profile {
+            subdomains: true,
+            aggressive_modules: true,
+            modules: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ProfileConfig {
+    pub subdomains: Option<bool>,
+    pub aggressive_modules: Option<bool>,
+    pub modules: Option<Vec<ModuleName>>,
+}
+
 // modules:(
 // subdomains:[ ]
 // tcp: [ ]

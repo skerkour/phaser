@@ -1,7 +1,7 @@
 use crate::Error;
 use async_trait::async_trait;
 use reqwest::Client;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 mod http;
 mod subdomains;
@@ -34,7 +34,7 @@ pub fn all_subdomains_modules() -> Vec<Box<dyn SubdomainModule>> {
 
 #[derive(Debug, Clone, Eq, PartialEq, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ModuleName{}
+pub enum ModuleName {}
 
 pub trait Module {
     fn name(&self) -> String;
