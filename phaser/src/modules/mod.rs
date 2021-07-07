@@ -1,6 +1,7 @@
 use crate::Error;
 use async_trait::async_trait;
 use reqwest::Client;
+use serde::{Serialize, Deserialize};
 
 mod http;
 mod subdomains;
@@ -30,6 +31,10 @@ pub fn all_subdomains_modules() -> Vec<Box<dyn SubdomainModule>> {
         Box::new(subdomains::WebArchive::new()),
     ];
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModuleName{}
 
 pub trait Module {
     fn name(&self) -> String;

@@ -1,7 +1,26 @@
 use serde::{Deserialize, Serialize};
+use crate::profile::Profile;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Report {}
+pub struct Report {
+    pub target: String,
+    pub profile: Profile,
+
+}
+
+// scan result {
+//     profile: {...}
+//     target: ""
+//     hosts: [
+//     {
+//     domain: "",
+//     resolves: bool,
+//     findings: {
+//     module: "",
+//     finding: { (enum(url,...) }
+//     }
+//     ]
+//     }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Port {
@@ -16,4 +35,9 @@ pub enum Protocol {
     Http,
     Https,
     // Ssh,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Finding {
+    Url(String)
 }
