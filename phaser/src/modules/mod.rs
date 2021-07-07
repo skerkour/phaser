@@ -39,6 +39,7 @@ pub fn all_subdomains_modules() -> Vec<Box<dyn SubdomainModule>> {
 pub enum ModuleName {
     // Subdomains
     SubdomainsCrtsh,
+    SubdomainsWebArchive,
 
     // Http
     HttpGitHeadDisclosure,
@@ -48,23 +49,24 @@ impl fmt::Display for ModuleName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ModuleName::SubdomainsCrtsh => write!(f, "subdomains/crtsh"),
+            ModuleName::SubdomainsWebArchive => write!(f, "subdomains/web_archive"),
             ModuleName::HttpGitHeadDisclosure => write!(f, "http/git_head_disclosure"),
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ModuleVersion(String);
+pub struct ModuleVersion(u8, u8, u8);
 
 impl fmt::Display for ModuleVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}.{}.{}", self.0, self.1, self.2)
     }
 }
 
 pub trait Module {
     fn name(&self) -> ModuleName;
-    fn version(&self) -> String;
+    fn version(&self) -> ModuleVersion;
     fn description(&self) -> String;
 }
 

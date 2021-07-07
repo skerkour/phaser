@@ -1,5 +1,5 @@
 use crate::{
-    modules::{Module, SubdomainModule},
+    modules::{Module, ModuleName, ModuleVersion, SubdomainModule},
     Error,
 };
 use async_trait::async_trait;
@@ -16,12 +16,16 @@ impl WebArchive {
 }
 
 impl Module for WebArchive {
-    fn name(&self) -> String {
-        String::from("subdomains/webarchive")
+    fn name(&self) -> ModuleName {
+        ModuleName::SubdomainsWebArchive
     }
 
     fn description(&self) -> String {
         String::from("Use web.archive.org to find subdomains")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
     }
 }
 
@@ -38,12 +42,12 @@ impl SubdomainModule for WebArchive {
         let res = reqwest::get(&url).await?;
 
         if !res.status().is_success() {
-            return Err(Error::InvalidHttpResponse(self.name()));
+            return Err(Error::InvalidHttpResponse(self.name().to_string()));
         }
 
         let web_archive_urls: WebArchiveResponse = match res.json().await {
             Ok(info) => info,
-            Err(_) => return Err(Error::InvalidHttpResponse(self.name())),
+            Err(_) => return Err(Error::InvalidHttpResponse(self.name().to_string())),
         };
 
         let subdomains: HashSet<String> = web_archive_urls

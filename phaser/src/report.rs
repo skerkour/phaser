@@ -6,9 +6,15 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Report {
+pub enum Report {
+    V1(ReportV1),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ReportV1 {
     pub target: String,
     pub profile: Profile,
+    pub hosts: Vec<Host>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
