@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Bloom logo" src="./phaser.svg" height="200" />
+  <img alt="Bloom logo" src="./phaser.png" height="200" />
   <h1 align="center">Phaser</h1>
   <h3 align="center">High-performance attack surface mapper and vulnerability scanner</h3>
 </p>
