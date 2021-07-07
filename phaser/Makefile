@@ -70,3 +70,8 @@ test:
 .PHONY: clean
 clean:
 	rm -rf $(DIST_DIR) $(TARGET_DIR)
+
+
+.PHONY: publish
+publish:
+	cargo publish
