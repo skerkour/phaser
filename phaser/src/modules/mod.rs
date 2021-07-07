@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::Error;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -34,10 +36,35 @@ pub fn all_subdomains_modules() -> Vec<Box<dyn SubdomainModule>> {
 
 #[derive(Debug, Clone, Eq, PartialEq, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ModuleName {}
+pub enum ModuleName {
+    // Subdomains
+    SubdomainsCrtsh,
+
+    // Http
+    HttpGitHeadDisclosure,
+}
+
+impl fmt::Display for ModuleName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ModuleName::SubdomainsCrtsh => write!(f, "subdomains/crtsh"),
+            ModuleName::HttpGitHeadDisclosure => write!(f, "http/git_head_disclosure"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ModuleVersion(String);
+
+impl fmt::Display for ModuleVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 pub trait Module {
-    fn name(&self) -> String;
+    fn name(&self) -> ModuleName;
+    fn version(&self) -> String;
     fn description(&self) -> String;
 }
 

@@ -4,7 +4,6 @@ use anyhow::Result;
 use clap::{App, Arg, SubCommand};
 
 mod cli;
-mod common_ports;
 mod dns;
 mod error;
 mod modules;

@@ -1,11 +1,11 @@
-use crate::{
-    common_ports::MOST_COMMON_PORTS,
-    modules::{Port, Subdomain},
-};
+use crate::modules::{Port, Subdomain};
 use futures::{stream, StreamExt};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 use tokio::net::TcpStream;
+
+mod common_ports;
+use common_ports::MOST_COMMON_PORTS;
 
 pub async fn scan_ports(concurrency: usize, mut subdomain: Subdomain) -> Subdomain {
     let hostname = &subdomain.domain.clone();

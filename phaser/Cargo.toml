@@ -1,6 +1,6 @@
 [package]
 name = "phaser"
-description = "High-performance attack surface mapper and vulnerability scanner "
+description = "High-performance attack surface mapper and vulnerability scanner"
 version = "0.7.2"
 authors = ["Sylvain Kerkour <sylvain@kerkour.com>"]
 edition = "2018"
