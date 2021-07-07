@@ -9,7 +9,12 @@ mod dns;
 mod error;
 mod modules;
 mod ports;
+mod profile;
+mod report;
+mod scanner;
 pub use error::Error;
+pub use report::Report;
+pub use scanner::Scanner;
 
 fn main() -> Result<()> {
     env::set_var("RUST_LOG", "info,trust_dns_proto=error");
