@@ -66,3 +66,8 @@ pub enum Severity {
 pub enum ModuleResult {
     Url(String),
 }
+
+pub enum OutputFormat {
+    Text,
+    Json,
+}

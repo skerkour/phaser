@@ -1,4 +1,5 @@
 use crate::profile::Profile;
+use crate::report::OutputFormat;
 use crate::Scanner;
 use crate::{modules, Error};
 
@@ -17,7 +18,7 @@ pub fn modules() {
     }
 }
 
-pub fn scan(target: &str, aggressive: bool) -> Result<(), Error> {
+pub fn scan(target: &str, aggressive: bool, output_format: OutputFormat) -> Result<(), Error> {
     log::info!("Scanning: {}", target);
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -37,7 +38,15 @@ pub fn scan(target: &str, aggressive: bool) -> Result<(), Error> {
 
     let report = runtime.block_on(async move { scanner.scan(target, profile).await })?;
 
-    println!("{:?}", report);
+    match output_format {
+        OutputFormat::Text => {
+            println!("{:?}", report);
+        }
+        OutputFormat::Json => {
+            let output = serde_json::to_string(&report)?;
+            println!("{}", output);
+        }
+    }
 
     Ok(())
 }
