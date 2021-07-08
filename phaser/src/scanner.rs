@@ -88,7 +88,7 @@ impl Scanner {
 
         log::info!("Found {} domains", report.hosts.len());
 
-        // 3rd step: concurrently filter unresolvable domains
+        // 3rd step: concurrently try to resolve domains
         report.hosts = stream::iter(report.hosts.into_iter())
             .map(|mut host| async move {
                 host.resolves = dns::resolves(&self.dns_resolver, &host).await;
