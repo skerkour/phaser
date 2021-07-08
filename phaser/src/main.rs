@@ -16,12 +16,14 @@ pub use report::Report;
 pub use scanner::Scanner;
 
 fn main() -> Result<()> {
-    env::set_var("RUST_LOG", "info,trust_dns_proto=error");
-    env_logger::init();
-
     let cli = App::new(clap::crate_name!())
         .version(clap::crate_version!())
         .about(clap::crate_description!())
+        .arg(
+            Arg::with_name("debug")
+                .help("Display debug logs")
+                .long("debug"),
+        )
         .subcommand(SubCommand::with_name("modules").about("List all modules"))
         .subcommand(
             SubCommand::with_name("scan")
@@ -42,6 +44,13 @@ fn main() -> Result<()> {
         .setting(clap::AppSettings::ArgRequiredElseHelp)
         .setting(clap::AppSettings::VersionlessSubcommands)
         .get_matches();
+
+    if cli.is_present("debug") {
+        env::set_var("RUST_LOG", "debug");
+    } else {
+        env::set_var("RUST_LOG", "info,trust_dns_proto=error");
+    }
+    env_logger::init();
 
     if let Some(_) = cli.subcommand_matches("modules") {
         cli::modules();

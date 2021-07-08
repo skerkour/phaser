@@ -10,6 +10,7 @@ use chrono::Utc;
 use futures::stream;
 use futures::StreamExt;
 use reqwest::Client;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::time::Duration;
@@ -75,7 +76,7 @@ impl Scanner {
         subdomains.push(target.to_string());
 
         // 2nd step: dedup, clean and convert results
-        let hosts: Vec<Host> = HashSet::<String>::from_iter(subdomains.into_iter())
+        report.hosts = HashSet::<String>::from_iter(subdomains.into_iter())
             .into_iter()
             .filter(|subdomain| subdomain.contains(target))
             .map(|domain| Host {
@@ -86,10 +87,10 @@ impl Scanner {
             })
             .collect();
 
-        log::info!("Found {} domains", hosts.len());
+        log::info!("Found {} domains", report.hosts.len());
 
         // 3rd step: concurrently filter unresolvable domains
-        let hosts: Vec<Host> = stream::iter(hosts.into_iter())
+        report.hosts = stream::iter(report.hosts.into_iter())
             .map(|mut host| async move {
                 host.resolves = dns::resolves(&self.dns_resolver, &host).await;
                 host
@@ -99,10 +100,13 @@ impl Scanner {
             .await;
 
         // 4th step: concurrently scan ports
-        let hosts: Vec<Host> = stream::iter(hosts.into_iter())
-            .map(|host| {
-                log::info!("Scannig ports for {}", &host.domain);
-                ports::scan_ports(self.ports_concurrency, host)
+        report.hosts = stream::iter(report.hosts.into_iter())
+            .map(|mut host| async move {
+                if host.resolves {
+                    log::info!("Scannig ports for {}", &host.domain);
+                    host = ports::scan_ports(self.ports_concurrency, host).await;
+                }
+                host
             })
             .buffer_unordered(1)
             .collect()
@@ -110,10 +114,17 @@ impl Scanner {
 
         log::info!("Scannig vulnerabilities");
 
+        let hosts: HashMap<String, Host> = report
+            .hosts
+            .clone()
+            .into_iter()
+            .map(|host| (host.domain.clone(), host))
+            .collect();
+
         // 5th step: concurrently scan vulnerabilities
         let mut targets: Vec<(Box<dyn HttpModule>, String)> = Vec::new();
-        for host in hosts {
-            for port in host.ports {
+        for (_, host) in &hosts {
+            for port in &host.ports {
                 let http_modules = modules::get_http_modules(&report.profile.modules);
                 for http_module in http_modules {
                     let target = format!("http://{}:{}", &host.domain, port.port);
