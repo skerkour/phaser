@@ -42,6 +42,7 @@ impl Scanner {
     }
 
     pub async fn scan(&self, target: &str, profile: Profile) -> Result<Report, Error> {
+        let aggressive_modules_enabled = profile.aggressive_modules;
         let mut report = ReportV1 {
             started_at: Utc::now(),
             completed_at: Utc::now(),
@@ -83,6 +84,7 @@ impl Scanner {
                 domain,
                 ips: Vec::new(),
                 ports: Vec::new(),
+                findings: Vec::new(),
             })
             .collect();
 
@@ -129,6 +131,11 @@ impl Scanner {
             .for_each_concurrent(self.vulnerabilities_conccurency, |(module, target)| {
                 let http_client = self.http_client.clone();
                 async move {
+                    if module.is_aggressive() && !aggressive_modules_enabled {
+                        log::warn!("Ignoring aggressive module {} as profile has aggressive_modules disables", module.name());
+                        return;
+                    }
+
                     match module.scan(&http_client, &target).await {
                         Ok(Some(finding)) => println!("{:?}", &finding),
                         Ok(None) => {}

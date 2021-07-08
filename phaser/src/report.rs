@@ -26,6 +26,7 @@ pub struct Host {
     pub domain: String,
     pub resolves: bool,
     pub ips: Vec<IpAddr>,
+    pub findings: Vec<Finding>,
     pub ports: Vec<Port>,
 }
 
