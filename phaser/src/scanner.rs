@@ -3,14 +3,16 @@ use crate::modules;
 use crate::modules::HttpModule;
 use crate::modules::Subdomain;
 use crate::ports;
+use crate::profile::Profile;
+use crate::report::ReportV1;
 use crate::{Error, Report};
+use chrono::Utc;
 use futures::stream;
 use futures::StreamExt;
 use reqwest::Client;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::time::Duration;
-use std::time::Instant;
 
 pub struct Scanner {
     http_client: Client,
@@ -39,8 +41,15 @@ impl Scanner {
         }
     }
 
-    pub async fn scan(&self, target: &str) -> Result<Report, Error> {
-        let scan_start = Instant::now();
+    pub async fn scan(&self, target: &str, profile: Profile) -> Result<Report, Error> {
+        let mut report = ReportV1 {
+            started_at: Utc::now(),
+            completed_at: Utc::now(),
+            duration_ms: 0,
+            target: String::from(target),
+            profile,
+            hosts: Vec::new(),
+        };
 
         let subdomains_modules = modules::all_subdomains_modules();
 
@@ -129,9 +138,10 @@ impl Scanner {
             })
             .await;
 
-        let scan_duration = scan_start.elapsed();
-        log::info!("Scan completed in {:?}", scan_duration);
+        report.completed_at = Utc::now();
+        let scan_duration = report.completed_at - report.started_at;
+        report.duration_ms = scan_duration.num_milliseconds() as u64;
 
-        todo!();
+        Ok(Report::V1(report))
     }
 }

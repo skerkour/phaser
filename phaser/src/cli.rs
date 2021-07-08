@@ -1,5 +1,5 @@
+use crate::profile::Profile;
 use crate::Scanner;
-
 use crate::{modules, Error};
 
 pub fn modules() {
@@ -27,7 +27,7 @@ pub fn scan(target: &str) -> Result<(), Error> {
 
     let scanner = Scanner::new();
 
-    let report = runtime.block_on(async move { scanner.scan(target).await })?;
+    let report = runtime.block_on(async move { scanner.scan(target, Profile::default()).await })?;
 
     println!("{:?}", report);
 

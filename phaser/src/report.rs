@@ -2,6 +2,7 @@ use crate::{
     modules::{ModuleName, ModuleVersion},
     profile::Profile,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
@@ -13,6 +14,9 @@ pub enum Report {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReportV1 {
     pub target: String,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: DateTime<Utc>,
+    pub duration_ms: u64,
     pub profile: Profile,
     pub hosts: Vec<Host>,
 }
