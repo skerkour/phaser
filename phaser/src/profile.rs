@@ -1,4 +1,4 @@
-use crate::modules::ModuleName;
+use crate::modules::{all_http_modules, all_subdomains_modules, ModuleName};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -10,10 +10,44 @@ pub struct Profile {
 
 impl Default for Profile {
     fn default() -> Self {
+        let mut modules: Vec<ModuleName> = all_subdomains_modules()
+            .into_iter()
+            .filter(|module| !module.is_aggressive())
+            .map(|module| module.name())
+            .collect();
+        let mut http_modules: Vec<ModuleName> = all_http_modules()
+            .into_iter()
+            .filter(|module| !module.is_aggressive())
+            .map(|module| module.name())
+            .collect();
+
+        modules.append(&mut http_modules);
+
         Profile {
             subdomains: true,
-            aggressive_modules: true,
-            modules: Vec::new(),
+            aggressive_modules: false,
+            modules,
+        }
+    }
+}
+
+impl Profile {
+    pub fn aggressive() -> Self {
+        let mut modules: Vec<ModuleName> = all_subdomains_modules()
+            .into_iter()
+            .map(|module| module.name())
+            .collect();
+        let mut http_modules: Vec<ModuleName> = all_http_modules()
+            .into_iter()
+            .map(|module| module.name())
+            .collect();
+
+        modules.append(&mut http_modules);
+
+        Profile {
+            subdomains: true,
+            aggressive_modules: false,
+            modules,
         }
     }
 }

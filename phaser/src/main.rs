@@ -24,12 +24,20 @@ fn main() -> Result<()> {
         .about(clap::crate_description!())
         .subcommand(SubCommand::with_name("modules").about("List all modules"))
         .subcommand(
-            SubCommand::with_name("scan").about("Scan a target").arg(
-                Arg::with_name("target")
-                    .help("The domain name to scan")
-                    .required(true)
-                    .index(1),
-            ),
+            SubCommand::with_name("scan")
+                .about("Scan a target")
+                .arg(
+                    Arg::with_name("target")
+                        .help("The domain name to scan")
+                        .required(true)
+                        .index(1),
+                )
+                .arg(
+                    Arg::with_name("aggressive")
+                        .help("Use aggressive modules")
+                        .long("aggressive")
+                        .short("a"),
+                ),
         )
         .setting(clap::AppSettings::ArgRequiredElseHelp)
         .setting(clap::AppSettings::VersionlessSubcommands)
@@ -40,7 +48,8 @@ fn main() -> Result<()> {
     } else if let Some(matches) = cli.subcommand_matches("scan") {
         // we can safely unwrap as the argument is required
         let target = matches.value_of("target").unwrap();
-        cli::scan(target)?;
+        let aggressive = matches.is_present("aggressive");
+        cli::scan(target, aggressive)?;
     }
 
     Ok(())

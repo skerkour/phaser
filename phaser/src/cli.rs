@@ -17,7 +17,7 @@ pub fn modules() {
     }
 }
 
-pub fn scan(target: &str) -> Result<(), Error> {
+pub fn scan(target: &str, aggressive: bool) -> Result<(), Error> {
     log::info!("Scanning: {}", target);
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -27,7 +27,15 @@ pub fn scan(target: &str) -> Result<(), Error> {
 
     let scanner = Scanner::new();
 
-    let report = runtime.block_on(async move { scanner.scan(target, Profile::default()).await })?;
+    let profile = if aggressive {
+        log::info!("Using aggressive profile");
+        Profile::aggressive()
+    } else {
+        log::info!("Using default profile");
+        Profile::default()
+    };
+
+    let report = runtime.block_on(async move { scanner.scan(target, profile).await })?;
 
     println!("{:?}", report);
 
