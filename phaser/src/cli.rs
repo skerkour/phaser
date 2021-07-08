@@ -8,7 +8,7 @@ pub fn modules() {
 
     println!("Subdomains modules");
     for module in subdomains_modules {
-        println!("   {}: {}", module.name(), module.description());
+        println!("    {}: {}", module.name(), module.description());
     }
 
     println!("HTTP modules");
