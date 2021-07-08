@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -22,12 +22,20 @@ impl Cve2018_7600 {
 }
 
 impl Module for Cve2018_7600 {
-    fn name(&self) -> String {
-        String::from("http/cve_2018_7600")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpCve2017_9506
     }
 
     fn description(&self) -> String {
         String::from("Check for CVE-2018-7600 (a.k.a. Drupalgeddon2)")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        true
     }
 }
 

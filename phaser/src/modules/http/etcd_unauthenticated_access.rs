@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -14,12 +14,20 @@ impl EtcdUnauthenticatedAccess {
 }
 
 impl Module for EtcdUnauthenticatedAccess {
-    fn name(&self) -> String {
-        String::from("http/etc_unauthenticated_access")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpEtcdUnauthenticatedAccess
     }
 
     fn description(&self) -> String {
         String::from("Check for CoreOS' etcd Unauthenticated Access")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

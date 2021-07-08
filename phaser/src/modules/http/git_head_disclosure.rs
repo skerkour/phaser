@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -18,12 +18,20 @@ impl GitHeadDisclosure {
 }
 
 impl Module for GitHeadDisclosure {
-    fn name(&self) -> String {
-        String::from("http/git_head_disclosure")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpGitHeadDisclosure
     }
 
     fn description(&self) -> String {
         String::from("Check for .git/HEAD file disclosure")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

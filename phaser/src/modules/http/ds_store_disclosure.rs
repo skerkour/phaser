@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -14,12 +14,20 @@ impl DsStoreDisclosure {
 }
 
 impl Module for DsStoreDisclosure {
-    fn name(&self) -> String {
-        String::from("http/ds_store")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpDsStoreDisclosure
     }
 
     fn description(&self) -> String {
-        String::from("Check if a .DS_Store file disclosure")
+        String::from("Check for a .DS_Store file disclosure")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

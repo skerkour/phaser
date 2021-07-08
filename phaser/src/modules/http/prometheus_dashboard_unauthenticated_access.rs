@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -14,12 +14,20 @@ impl PrometheusDashboardUnauthenticatedAccess {
 }
 
 impl Module for PrometheusDashboardUnauthenticatedAccess {
-    fn name(&self) -> String {
-        String::from("http/prometheus_dashboard_unauthenticated_access")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpPrometheusDashboardUnauthenticatedAccess
     }
 
     fn description(&self) -> String {
         String::from("Check for Prometheus Dashboard Unauthenticated Access")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

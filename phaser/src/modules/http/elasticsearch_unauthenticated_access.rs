@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -15,12 +15,20 @@ impl ElasticsearchUnauthenticatedAccess {
 }
 
 impl Module for ElasticsearchUnauthenticatedAccess {
-    fn name(&self) -> String {
-        String::from("http/elasticsearch_unauthenticated_access")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpElasticsearchUnauthenticatedAccess
     }
 
     fn description(&self) -> String {
         String::from("Check for elasticsearch Unauthenticated Access")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

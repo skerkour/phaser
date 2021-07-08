@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -14,12 +14,20 @@ impl GitlabOpenRegistrations {
 }
 
 impl Module for GitlabOpenRegistrations {
-    fn name(&self) -> String {
-        String::from("http/gitlab_open_registration")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpGitlabOpenRegistration
     }
 
     fn description(&self) -> String {
         String::from("Check if the GitLab instance is open to registrations")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

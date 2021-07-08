@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -14,12 +14,20 @@ impl TraefikDashboardUnauthenticatedAccess {
 }
 
 impl Module for TraefikDashboardUnauthenticatedAccess {
-    fn name(&self) -> String {
-        String::from("http/traefik_dashboard_unauthenticated_access")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpTraefikDashboardUnauthenticatedAccess
     }
 
     fn description(&self) -> String {
         String::from("Check for Traefik Dashboard Unauthenticated Access")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

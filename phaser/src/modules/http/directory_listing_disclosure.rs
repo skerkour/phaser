@@ -1,5 +1,5 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module},
+    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
     Error,
 };
 use async_trait::async_trait;
@@ -27,12 +27,20 @@ impl DirectoryListingDisclosure {
 }
 
 impl Module for DirectoryListingDisclosure {
-    fn name(&self) -> String {
-        String::from("http/directory_listing")
+    fn name(&self) -> ModuleName {
+        ModuleName::HttpDirectoryListingDisclosure
     }
 
     fn description(&self) -> String {
         String::from("Check for enabled directory listing, which often leak information")
+    }
+
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

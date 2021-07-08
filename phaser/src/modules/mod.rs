@@ -42,15 +42,56 @@ pub enum ModuleName {
     SubdomainsWebArchive,
 
     // Http
+    HttpCve2017_9506,
+    HttpCve2018_7600,
+    HttpDirectoryListingDisclosure,
+    HttpDotenvDisclosure,
+    HttpDsStoreDisclosure,
+    HttpElasticsearchUnauthenticatedAccess,
+    HttpEtcdUnauthenticatedAccess,
+    HttpGitConfigDisclosure,
+    HttpGitDirectoryDisclosure,
     HttpGitHeadDisclosure,
+    HttpGitlabOpenRegistration,
+    HttpKibanaUnauthenticatedAccess,
+    HttpPrometheusDashboardUnauthenticatedAccess,
+    HttpTraefikDashboardUnauthenticatedAccess,
 }
 
 impl fmt::Display for ModuleName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            // Subdomains
             ModuleName::SubdomainsCrtsh => write!(f, "subdomains/crtsh"),
             ModuleName::SubdomainsWebArchive => write!(f, "subdomains/web_archive"),
+
+            // Http
+            ModuleName::HttpCve2017_9506 => write!(f, "http/cve_2017_9506"),
+            ModuleName::HttpCve2018_7600 => write!(f, "http/cve_2018_7600"),
+            ModuleName::HttpDirectoryListingDisclosure => {
+                write!(f, "http/directory_listing_disclosure")
+            }
+            ModuleName::HttpDotenvDisclosure => write!(f, "http/dotenv_disclosure"),
+            ModuleName::HttpDsStoreDisclosure => write!(f, "http/ds_store_disclosure"),
+            ModuleName::HttpElasticsearchUnauthenticatedAccess => {
+                write!(f, "http/elasticsearch_unauthenticated_access")
+            }
+            ModuleName::HttpEtcdUnauthenticatedAccess => {
+                write!(f, "http/etcd_unauthenticated_access")
+            }
+            ModuleName::HttpGitConfigDisclosure => write!(f, "http/git_config_disclosure"),
+            ModuleName::HttpGitDirectoryDisclosure => write!(f, "http/git_directory_disclosure"),
             ModuleName::HttpGitHeadDisclosure => write!(f, "http/git_head_disclosure"),
+            ModuleName::HttpGitlabOpenRegistration => write!(f, "http/gitlab_open_registration"),
+            ModuleName::HttpKibanaUnauthenticatedAccess => {
+                write!(f, "http/kibana_unauthenticated_access")
+            }
+            ModuleName::HttpPrometheusDashboardUnauthenticatedAccess => {
+                write!(f, "http/prometheus_dashboard_unauthenticated_access")
+            }
+            ModuleName::HttpTraefikDashboardUnauthenticatedAccess => {
+                write!(f, "http/traefik_dashboard_unauthenticated_access")
+            }
         }
     }
 }
@@ -68,6 +109,7 @@ pub trait Module {
     fn name(&self) -> ModuleName;
     fn version(&self) -> ModuleVersion;
     fn description(&self) -> String;
+    fn is_aggressive(&self) -> bool;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

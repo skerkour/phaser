@@ -20,12 +20,16 @@ impl Module for WebArchive {
         ModuleName::SubdomainsWebArchive
     }
 
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
     fn description(&self) -> String {
         String::from("Use web.archive.org to find subdomains")
     }
 
-    fn version(&self) -> ModuleVersion {
-        ModuleVersion(1, 0, 0)
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 

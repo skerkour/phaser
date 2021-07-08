@@ -19,12 +19,16 @@ impl Module for Crtsh {
         ModuleName::SubdomainsCrtsh
     }
 
+    fn version(&self) -> ModuleVersion {
+        ModuleVersion(1, 0, 0)
+    }
+
     fn description(&self) -> String {
         String::from("Use crt.sh/ to find subdomains")
     }
 
-    fn version(&self) -> ModuleVersion {
-        ModuleVersion(1, 0, 0)
+    fn is_aggressive(&self) -> bool {
+        false
     }
 }
 
