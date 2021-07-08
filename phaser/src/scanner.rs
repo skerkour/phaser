@@ -51,7 +51,7 @@ impl Scanner {
             hosts: Vec::new(),
         };
 
-        let subdomains_modules = modules::all_subdomains_modules();
+        let subdomains_modules = modules::get_subdomains_modules(&report.profile.modules);
 
         // 1st step: concurrently scan subdomains
         let mut subdomains: Vec<String> = stream::iter(subdomains_modules.into_iter())
@@ -117,7 +117,7 @@ impl Scanner {
         let mut targets: Vec<(Box<dyn HttpModule>, String)> = Vec::new();
         for subdomain in subdomains {
             for port in subdomain.open_ports {
-                let http_modules = modules::all_http_modules();
+                let http_modules = modules::get_http_modules(&report.profile.modules);
                 for http_module in http_modules {
                     let target = format!("http://{}:{}", &subdomain.domain, port.port);
                     targets.push((http_module, target));

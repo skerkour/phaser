@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashSet, fmt, iter::FromIterator};
 
 use crate::Error;
 use async_trait::async_trait;
@@ -27,6 +27,15 @@ pub fn all_http_modules() -> Vec<Box<dyn HttpModule>> {
     ];
 }
 
+pub fn get_http_modules(modules: &Vec<ModuleName>) -> Vec<Box<dyn HttpModule>> {
+    let modules: HashSet<ModuleName> = HashSet::from_iter(modules.iter().cloned());
+
+    all_http_modules()
+        .into_iter()
+        .filter(|module| modules.contains(&module.name()))
+        .collect()
+}
+
 pub fn all_subdomains_modules() -> Vec<Box<dyn SubdomainModule>> {
     return vec![
         Box::new(subdomains::Crtsh::new()),
@@ -34,7 +43,16 @@ pub fn all_subdomains_modules() -> Vec<Box<dyn SubdomainModule>> {
     ];
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Copy, Deserialize, Serialize)]
+pub fn get_subdomains_modules(modules: &Vec<ModuleName>) -> Vec<Box<dyn SubdomainModule>> {
+    let modules: HashSet<ModuleName> = HashSet::from_iter(modules.iter().cloned());
+
+    all_subdomains_modules()
+        .into_iter()
+        .filter(|module| modules.contains(&module.name()))
+        .collect()
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Copy, Deserialize, Serialize, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum ModuleName {
     // Subdomains
