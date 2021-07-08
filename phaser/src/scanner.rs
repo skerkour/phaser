@@ -114,16 +114,9 @@ impl Scanner {
 
         log::info!("Scannig vulnerabilities");
 
-        let hosts: HashMap<String, Host> = report
-            .hosts
-            .clone()
-            .into_iter()
-            .map(|host| (host.domain.clone(), host))
-            .collect();
-
         // 5th step: concurrently scan vulnerabilities
         let mut targets: Vec<(Box<dyn HttpModule>, String)> = Vec::new();
-        for (_, host) in &hosts {
+        for host in &report.hosts {
             for port in &host.ports {
                 let http_modules = modules::get_http_modules(&report.profile.modules);
                 for http_module in http_modules {
