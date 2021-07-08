@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Profile {
+    pub name: String,
     pub subdomains: bool,
     pub aggressive_modules: bool,
     pub modules: Vec<ModuleName>,
@@ -24,6 +25,7 @@ impl Default for Profile {
         modules.append(&mut http_modules);
 
         Profile {
+            name: String::from("default"),
             subdomains: true,
             aggressive_modules: false,
             modules,
@@ -45,6 +47,7 @@ impl Profile {
         modules.append(&mut http_modules);
 
         Profile {
+            name: String::from("aggressive"),
             subdomains: true,
             aggressive_modules: false,
             modules,

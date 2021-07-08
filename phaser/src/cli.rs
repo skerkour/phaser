@@ -29,12 +29,12 @@ pub fn scan(target: &str, aggressive: bool, output_format: OutputFormat) -> Resu
     let scanner = Scanner::new();
 
     let profile = if aggressive {
-        log::info!("Using aggressive profile");
         Profile::aggressive()
     } else {
-        log::info!("Using default profile");
         Profile::default()
     };
+
+    log::info!("Using {} profile", &profile.name);
 
     let report = runtime.block_on(async move { scanner.scan(target, profile).await })?;
 
