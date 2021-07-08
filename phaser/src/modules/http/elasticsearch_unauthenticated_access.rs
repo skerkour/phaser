@@ -1,5 +1,6 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
+    modules::{HttpModule, Module, ModuleName, ModuleVersion},
+    report::{Finding, ModuleResult, Severity},
     Error,
 };
 use async_trait::async_trait;
@@ -30,6 +31,10 @@ impl Module for ElasticsearchUnauthenticatedAccess {
     fn is_aggressive(&self) -> bool {
         false
     }
+
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -41,11 +46,7 @@ struct ElasticsearchInfo {
 
 #[async_trait]
 impl HttpModule for ElasticsearchUnauthenticatedAccess {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error> {
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error> {
         let url = format!("{}", &endpoint);
         let res = http_client.get(&url).send().await?;
 
@@ -59,7 +60,12 @@ impl HttpModule for ElasticsearchUnauthenticatedAccess {
         };
 
         if info.tagline.to_lowercase().contains("you know, for search") {
-            return Ok(Some(HttpFinding::ElasticsearchUnauthenticatedAccess(url)));
+            return Ok(Some(Finding {
+                module: self.name(),
+                module_version: self.version(),
+                severity: self.severity(),
+                result: ModuleResult::Url(url),
+            }));
         }
 
         Ok(None)

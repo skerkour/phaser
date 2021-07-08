@@ -1,5 +1,6 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
+    modules::{HttpModule, Module, ModuleName, ModuleVersion},
+    report::{Finding, ModuleResult, Severity},
     Error,
 };
 use async_trait::async_trait;
@@ -29,15 +30,15 @@ impl Module for PrometheusDashboardUnauthenticatedAccess {
     fn is_aggressive(&self) -> bool {
         false
     }
+
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
 }
 
 #[async_trait]
 impl HttpModule for PrometheusDashboardUnauthenticatedAccess {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error> {
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error> {
         let url = format!("{}", &endpoint);
         let res = http_client.get(&url).send().await?;
 
@@ -49,9 +50,12 @@ impl HttpModule for PrometheusDashboardUnauthenticatedAccess {
         if body
             .contains(r#"<title>Prometheus Time Series Collection and Processing Server</title>"#)
         {
-            return Ok(Some(HttpFinding::PrometheusDashboardUnauthenticatedAccess(
-                url,
-            )));
+            return Ok(Some(Finding {
+                module: self.name(),
+                module_version: self.version(),
+                severity: self.severity(),
+                result: ModuleResult::Url(url),
+            }));
         }
 
         Ok(None)

@@ -1,4 +1,4 @@
-use crate::modules::{Port, Subdomain};
+use crate::report::{Host, Port, Protocol};
 use futures::{stream, StreamExt};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
@@ -7,26 +7,20 @@ use tokio::net::TcpStream;
 mod common_ports;
 use common_ports::MOST_COMMON_PORTS;
 
-pub async fn scan_ports(concurrency: usize, mut subdomain: Subdomain) -> Subdomain {
-    let hostname = &subdomain.domain.clone();
+pub async fn scan_ports(concurrency: usize, mut host: Host) -> Host {
+    let hostname = &host.domain.clone();
 
-    subdomain.open_ports = stream::iter(MOST_COMMON_PORTS.into_iter())
-        .map(|port| async move {
-            let port = scan_port(hostname, *port).await;
-            if port.is_open {
-                return Some(port);
-            }
-            None
-        })
+    host.ports = stream::iter(MOST_COMMON_PORTS.into_iter())
+        .map(|port| scan_port(hostname, *port))
         .buffer_unordered(concurrency)
         .filter_map(|port| async { port })
         .collect()
         .await;
 
-    subdomain
+    host
 }
 
-async fn scan_port(hostname: &str, port: u16) -> Port {
+async fn scan_port(hostname: &str, port: u16) -> Option<Port> {
     let timeout = Duration::from_secs(3);
     let socket_addresses: Vec<SocketAddr> = format!("{}:{}", hostname, port)
         .to_socket_addrs()
@@ -34,24 +28,16 @@ async fn scan_port(hostname: &str, port: u16) -> Port {
         .collect();
 
     if socket_addresses.len() == 0 {
-        return Port {
-            port: port,
-            is_open: false,
-            findings: Vec::new(),
-        };
+        return None;
     }
 
-    let is_open = if let Ok(_) =
-        tokio::time::timeout(timeout, TcpStream::connect(&socket_addresses[0])).await
-    {
-        true
-    } else {
-        false
-    };
-
-    Port {
-        port: port,
-        is_open,
-        findings: Vec::new(),
+    // TODO: detect protocol
+    match tokio::time::timeout(timeout, TcpStream::connect(&socket_addresses[0])).await {
+        Ok(_) => Some(Port {
+            port: port,
+            protocol: Protocol::Tcp,
+            findings: Vec::new(),
+        }),
+        Err(_) => None,
     }
 }

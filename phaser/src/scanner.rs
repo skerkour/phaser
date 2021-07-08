@@ -1,9 +1,9 @@
 use crate::dns;
 use crate::modules;
 use crate::modules::HttpModule;
-use crate::modules::Subdomain;
 use crate::ports;
 use crate::profile::Profile;
+use crate::report::Host;
 use crate::report::ReportV1;
 use crate::{Error, Report};
 use chrono::Utc;
@@ -75,30 +75,34 @@ impl Scanner {
         subdomains.push(target.to_string());
 
         // 2nd step: dedup, clean and convert results
-        let subdomains: Vec<Subdomain> = HashSet::<String>::from_iter(subdomains.into_iter())
+        let hosts: Vec<Host> = HashSet::<String>::from_iter(subdomains.into_iter())
             .into_iter()
             .filter(|subdomain| subdomain.contains(target))
-            .map(|domain| Subdomain {
+            .map(|domain| Host {
+                resolves: false,
                 domain,
-                open_ports: Vec::new(),
+                ips: Vec::new(),
+                ports: Vec::new(),
             })
             .collect();
 
-        log::info!("Found {} domains", subdomains.len());
+        log::info!("Found {} domains", hosts.len());
 
         // 3rd step: concurrently filter unresolvable domains
-        let subdomains: Vec<Subdomain> = stream::iter(subdomains.into_iter())
-            .map(|domain| dns::resolves(&self.dns_resolver, domain))
+        let hosts: Vec<Host> = stream::iter(hosts.into_iter())
+            .map(|mut host| async move {
+                host.resolves = dns::resolves(&self.dns_resolver, &host).await;
+                host
+            })
             .buffer_unordered(self.dns_concurrency)
-            .filter_map(|domain| async move { domain })
             .collect()
             .await;
 
         // 4th step: concurrently scan ports
-        let subdomains: Vec<Subdomain> = stream::iter(subdomains.into_iter())
-            .map(|domain| {
-                log::info!("Scannig ports for {}", &domain.domain);
-                ports::scan_ports(self.ports_concurrency, domain)
+        let hosts: Vec<Host> = stream::iter(hosts.into_iter())
+            .map(|host| {
+                log::info!("Scannig ports for {}", &host.domain);
+                ports::scan_ports(self.ports_concurrency, host)
             })
             .buffer_unordered(1)
             .collect()
@@ -108,11 +112,11 @@ impl Scanner {
 
         // 5th step: concurrently scan vulnerabilities
         let mut targets: Vec<(Box<dyn HttpModule>, String)> = Vec::new();
-        for subdomain in subdomains {
-            for port in subdomain.open_ports {
+        for host in hosts {
+            for port in host.ports {
                 let http_modules = modules::get_http_modules(&report.profile.modules);
                 for http_module in http_modules {
-                    let target = format!("http://{}:{}", &subdomain.domain, port.port);
+                    let target = format!("http://{}:{}", &host.domain, port.port);
                     targets.push((http_module, target));
                 }
             }

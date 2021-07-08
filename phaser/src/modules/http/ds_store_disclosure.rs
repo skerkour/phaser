@@ -1,5 +1,6 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
+    modules::{HttpModule, Module, ModuleName, ModuleVersion},
+    report::{Finding, ModuleResult, Severity},
     Error,
 };
 use async_trait::async_trait;
@@ -29,15 +30,15 @@ impl Module for DsStoreDisclosure {
     fn is_aggressive(&self) -> bool {
         false
     }
+
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
 }
 
 #[async_trait]
 impl HttpModule for DsStoreDisclosure {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error> {
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error> {
         let url = format!("{}/.DS_Store", &endpoint);
         let res = http_client.get(&url).send().await?;
 
@@ -47,7 +48,12 @@ impl HttpModule for DsStoreDisclosure {
 
         let body = res.bytes().await?;
         if is_ds_store(&body.as_ref()) {
-            return Ok(Some(HttpFinding::DsStoreFileDisclosure(url)));
+            return Ok(Some(Finding {
+                module: self.name(),
+                module_version: self.version(),
+                severity: self.severity(),
+                result: ModuleResult::Url(url),
+            }));
         }
 
         Ok(None)

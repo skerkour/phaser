@@ -1,4 +1,4 @@
-use crate::modules::Subdomain;
+use crate::report::Host;
 use std::{sync::Arc, time::Duration};
 use trust_dns_resolver::{
     config::{ResolverConfig, ResolverOpts},
@@ -8,12 +8,12 @@ use trust_dns_resolver::{
 
 pub type Resolver = Arc<AsyncResolver<GenericConnection, GenericConnectionProvider<TokioRuntime>>>;
 
-pub async fn resolves(dns_resolver: &Resolver, domain: Subdomain) -> Option<Subdomain> {
-    if dns_resolver.lookup_ip(domain.domain.as_str()).await.is_ok() {
-        return Some(domain);
+pub async fn resolves(dns_resolver: &Resolver, host: &Host) -> bool {
+    if dns_resolver.lookup_ip(host.domain.as_str()).await.is_ok() {
+        return true;
     }
 
-    None
+    false
 }
 
 pub fn new_resolver() -> Resolver {

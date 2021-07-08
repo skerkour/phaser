@@ -1,6 +1,9 @@
 use std::{collections::HashSet, fmt, iter::FromIterator};
 
-use crate::Error;
+use crate::{
+    report::{Finding, Severity},
+    Error,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -127,6 +130,7 @@ pub trait Module {
     fn name(&self) -> ModuleName;
     fn version(&self) -> ModuleVersion;
     fn description(&self) -> String;
+    fn severity(&self) -> Severity;
     fn is_aggressive(&self) -> bool;
 }
 
@@ -139,46 +143,11 @@ pub trait SubdomainModule: Module {
     async fn enumerate(&self, domain: &str) -> Result<Vec<String>, Error>;
 }
 
-#[derive(Debug, Clone)]
-pub struct Subdomain {
-    pub domain: String,
-    pub open_ports: Vec<Port>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Port {
-    pub port: u16,
-    pub is_open: bool,
-    pub findings: Vec<HttpFinding>,
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // HTTP
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #[async_trait]
 pub trait HttpModule: Module {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error>;
-}
-
-#[derive(Debug, Clone)]
-pub enum HttpFinding {
-    DsStoreFileDisclosure(String),
-    DotEnvFileDisclosure(String),
-    DirectoryListingDisclosure(String),
-    TraefikDashboardUnauthenticatedAccess(String),
-    PrometheusDashboardUnauthenticatedAccess(String),
-    KibanaUnauthenticatedAccess(String),
-    GitlabOpenRegistrations(String),
-    GitHeadDisclosure(String),
-    GitDirectoryDisclosure(String),
-    GitConfigDisclosure(String),
-    EtcdUnauthenticatedAccess(String),
-    Cve2017_9506(String),
-    Cve2018_7600(String),
-    ElasticsearchUnauthenticatedAccess(String),
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error>;
 }

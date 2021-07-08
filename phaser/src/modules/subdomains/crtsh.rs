@@ -1,5 +1,6 @@
 use crate::{
     modules::{Module, ModuleName, ModuleVersion, SubdomainModule},
+    report::Severity,
     Error,
 };
 use async_trait::async_trait;
@@ -29,6 +30,10 @@ impl Module for Crtsh {
 
     fn is_aggressive(&self) -> bool {
         false
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Informative
     }
 }
 

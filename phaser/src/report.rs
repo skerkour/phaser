@@ -49,7 +49,17 @@ pub enum Protocol {
 pub struct Finding {
     pub module: ModuleName,
     pub module_version: ModuleVersion,
+    pub severity: Severity,
     pub result: ModuleResult,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Severity {
+    Informative,
+    Low,
+    Medium,
+    High,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]

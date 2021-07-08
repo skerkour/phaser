@@ -1,5 +1,6 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
+    modules::{HttpModule, Module, ModuleName, ModuleVersion},
+    report::{Finding, ModuleResult, Severity},
     Error,
 };
 use async_trait::async_trait;
@@ -29,15 +30,15 @@ impl Module for Cve2017_9506 {
     fn is_aggressive(&self) -> bool {
         false
     }
+
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
 }
 
 #[async_trait]
 impl HttpModule for Cve2017_9506 {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error> {
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error> {
         let url = format!(
             "{}/plugins/servlet/oauth/users/icon-uri?consumerUri=https://google.com/robots.txt",
             &endpoint
@@ -50,7 +51,12 @@ impl HttpModule for Cve2017_9506 {
 
         let body = res.text().await?;
         if body.contains("user-agent: *") && body.contains("disallow") {
-            return Ok(Some(HttpFinding::Cve2017_9506(url)));
+            return Ok(Some(Finding {
+                module: self.name(),
+                module_version: self.version(),
+                severity: self.severity(),
+                result: ModuleResult::Url(url),
+            }));
         }
 
         Ok(None)

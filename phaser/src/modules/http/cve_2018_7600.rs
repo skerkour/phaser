@@ -1,5 +1,6 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
+    modules::{HttpModule, Module, ModuleName, ModuleVersion},
+    report::{Finding, ModuleResult, Severity},
     Error,
 };
 use async_trait::async_trait;
@@ -37,15 +38,15 @@ impl Module for Cve2018_7600 {
     fn is_aggressive(&self) -> bool {
         true
     }
+
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
 }
 
 #[async_trait]
 impl HttpModule for Cve2018_7600 {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error> {
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error> {
         let token = "08d15a4aef553492d8971cdd5198f31408d15a4aef553492d8971cdd5198f314";
 
         let form = [
@@ -85,7 +86,12 @@ impl HttpModule for Cve2018_7600 {
                 let body = res.text().await?;
 
                 if body.contains(&token) {
-                    return Ok(Some(HttpFinding::Cve2018_7600(url)));
+                    return Ok(Some(Finding {
+                        module: self.name(),
+                        module_version: self.version(),
+                        severity: self.severity(),
+                        result: ModuleResult::Url(url),
+                    }));
                 }
             }
         }

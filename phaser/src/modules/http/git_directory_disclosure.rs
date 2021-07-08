@@ -1,5 +1,6 @@
 use crate::{
-    modules::{HttpFinding, HttpModule, Module, ModuleName, ModuleVersion},
+    modules::{HttpModule, Module, ModuleName, ModuleVersion},
+    report::{Finding, ModuleResult, Severity},
     Error,
 };
 use async_trait::async_trait;
@@ -37,15 +38,15 @@ impl Module for GitDirectoryDisclosure {
     fn is_aggressive(&self) -> bool {
         false
     }
+
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
 }
 
 #[async_trait]
 impl HttpModule for GitDirectoryDisclosure {
-    async fn scan(
-        &self,
-        http_client: &Client,
-        endpoint: &str,
-    ) -> Result<Option<HttpFinding>, Error> {
+    async fn scan(&self, http_client: &Client, endpoint: &str) -> Result<Option<Finding>, Error> {
         let url = format!("{}/.git/", &endpoint);
         let res = http_client.get(&url).send().await?;
 
@@ -55,7 +56,12 @@ impl HttpModule for GitDirectoryDisclosure {
 
         let body = res.text().await?;
         if self.is_git_directory_listing(&body) {
-            return Ok(Some(HttpFinding::GitDirectoryDisclosure(url)));
+            return Ok(Some(Finding {
+                module: self.name(),
+                module_version: self.version(),
+                severity: self.severity(),
+                result: ModuleResult::Url(url),
+            }));
         }
 
         Ok(None)
