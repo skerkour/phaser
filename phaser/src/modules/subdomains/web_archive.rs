@@ -61,7 +61,7 @@ impl SubdomainModule for WebArchive {
             .filter_map(|url| {
                 Url::parse(&url)
                     .map_err(|err| {
-                        log::error!("{}: error parsing url: {}", self.name(), err);
+                        log::debug!("{}: error parsing url: {}", self.name(), err);
                         err
                     })
                     .ok()

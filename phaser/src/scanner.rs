@@ -59,7 +59,7 @@ impl Scanner {
                 match module.enumerate(target).await {
                     Ok(new_subdomains) => Some(new_subdomains),
                     Err(err) => {
-                        log::error!("subdomains/{}: {}", module.name(), err);
+                        log::error!("{}: {}", module.name(), err);
                         None
                     }
                 }
@@ -104,14 +104,7 @@ impl Scanner {
             .collect()
             .await;
 
-        for subdomain in &subdomains {
-            println!("{}", subdomain.domain);
-            for port in &subdomain.open_ports {
-                println!("    {}", port.port);
-            }
-        }
-
-        println!("---------------------- Vulnerabilities ----------------------");
+        log::info!("Scannig vulnerabilities");
 
         // 5th step: concurrently scan vulnerabilities
         let mut targets: Vec<(Box<dyn HttpModule>, String)> = Vec::new();
