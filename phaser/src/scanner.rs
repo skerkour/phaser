@@ -10,7 +10,6 @@ use chrono::Utc;
 use futures::stream;
 use futures::StreamExt;
 use reqwest::Client;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::time::Duration;
