@@ -10,7 +10,7 @@ on:
 
 jobs:
 
-  phaser:
+  test_phaser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -35,15 +35,16 @@ jobs:
         run: |
           cd phaser
           make check
-  # build_phaser:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
 
-  #     - name: Build Docker
-  #       run: |
-  #         make docker
+  build_phaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
 
-  #     - name: Docker image info
-  #       run: |
-  #         docker images
+      - name: Build Docker
+        run: |
+          make docker
+
+      - name: Docker image info
+        run: |
+          docker images
