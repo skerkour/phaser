@@ -74,6 +74,7 @@ clean:
 
 .PHONY: publish
 publish:
-	mv .cargo .cargo_tmp
+	mv .cargo/config.toml .cargo/config_tmp.toml
+	touch .cargo/config.toml
 	cargo publish --allow-dirty
-	mv .cargo_tmp .cargo
+	rm .cargo/config.toml && mv .cargo/config_tmp.toml .cargo/config.toml
