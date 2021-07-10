@@ -64,3 +64,5 @@ $ docker run -ti gcr.io/skerkour/phaser phaser scan target.com
 ```
 
 ## License
+
+See [`LICENSE.txt`](./LICENSE.txt).
