@@ -41,7 +41,7 @@ $ cargo install phaser
 ### Using Docker
 
 ```shel
-$ docker pull gcr.io/skerkour/phaser
+$ docker pull ghcr.io/skerkour/phaser
 ```
 
 
@@ -60,7 +60,7 @@ $ phaser scan target.com
 ### With Docker
 
 ```shell
-$ docker run -ti gcr.io/skerkour/phaser phaser scan target.com
+$ docker run -ti ghcr.io/skerkour/phaser phaser scan target.com
 ```
 
 ## License
