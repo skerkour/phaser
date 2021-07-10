@@ -1,3 +1,5 @@
+#![deny(non_ascii_idents)]
+
 use crate::report::OutputFormat;
 use anyhow::Result;
 use clap::{App, Arg, SubCommand};
