@@ -48,6 +48,8 @@ $ docker pull gcr.io/skerkour/phaser
 ```shell
 # List modules
 $ phaser modules
+# Display scan options
+$ phaser scan --help
 # Scan a target
 $ phaser scan target.com
 ```
