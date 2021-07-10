@@ -60,7 +60,7 @@ fn main() -> Result<()> {
                 )
                 .arg(
                     Arg::with_name("aggressive")
-                        .help("Use aggressive modules")
+                        .help("Use aggressive modules (disabled by default)")
                         .long("aggressive")
                         .short("a"),
                 )
