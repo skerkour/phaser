@@ -26,6 +26,8 @@ Want to learn how to use Rust to hack the planet? Phaser was extracted and impro
   </h3>
 </div>
 
+One of the goal of phaser is to get you started once you finish the book, whether it be by helping you make your first Rust contribution, or by using it in your first bug hunt.
+
 
 ## Installation
 
