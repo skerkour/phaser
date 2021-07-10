@@ -132,7 +132,7 @@ impl Scanner {
                 let http_client = self.http_client.clone();
                 async move {
                     if module.is_aggressive() && !aggressive_modules_enabled {
-                        log::warn!("Ignoring aggressive module {} as profile has aggressive_modules disables", module.name());
+                        log::warn!("Ignoring aggressive module {} as profile has aggressive_modules disabled", module.name());
                         return;
                     }
 

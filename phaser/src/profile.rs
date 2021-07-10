@@ -49,7 +49,7 @@ impl Profile {
         Profile {
             name: String::from("aggressive"),
             subdomains: true,
-            aggressive_modules: false,
+            aggressive_modules: true,
             modules,
         }
     }
