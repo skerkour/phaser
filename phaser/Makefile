@@ -74,4 +74,6 @@ clean:
 
 .PHONY: publish
 publish:
-	cargo publish
+	mv .cargo .cargo_tmp
+	cargo publish --allow-dirty
+	mv .cargo_tmp .cargo
