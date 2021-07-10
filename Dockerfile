@@ -46,6 +46,7 @@ COPY --from=builder_rust /etc/passwd /etc/passwd
 COPY --from=builder_rust /etc/group /etc/group
 
 WORKDIR /phaser
+ENV PATH="/phaser:${PATH}"
 
 # Copy our builds
 COPY --from=builder_rust /phaser/phaser/dist/ ./
