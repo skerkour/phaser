@@ -10,7 +10,7 @@ on:
     # - v*
 
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,3 +30,19 @@ jobs:
       - name: Push Docker images
         run: |
           docker push ghcr.io/${{ secrets.DOCKER_USERNAME }}/phaser
+
+
+  crates_io:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cargo login
+        run: |
+          cargo login ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Cargo publish
+        run: |
+          cd phaser
+          make publish
