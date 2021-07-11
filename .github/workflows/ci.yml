@@ -20,6 +20,7 @@ jobs:
           rustup update
           rustup component add clippy
           rustup install nightly
+
       - name: Toolchain info
         run: |
           cargo --version --verbose
@@ -31,7 +32,6 @@ jobs:
       #     make lint
 
       - name: Test
-        # make test
         run: |
           cd phaser
           make check
