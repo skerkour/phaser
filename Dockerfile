@@ -61,3 +61,4 @@ LABEL maintainer="Sylvain Kerkour <https://kerkour.com>"
 LABEL homepage=https://github.com/skerkour/phaser
 LABEL org.opencontainers.image.name=phaser
 LABEL repository=https://github.com/skerkour/phaser
+LABEL org.opencontainers.image.source https://github.com/skerkour/phaser
