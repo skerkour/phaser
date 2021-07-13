@@ -1,14 +1,14 @@
 <p align="center">
   <img alt="Phaser logo" src="https://kerkour.com/imgs/phaser.svg" height="200" />
   <h1 align="center">Phaser</h1>
-  <h3 align="center">High-performance attack surface mapper and vulnerability scanner</h3>
+  <h3 align="center">Automated attack surface mapper and vulnerability scanner</h3>
 </p>
 
 
 
 ## What is this?
 
-Phaser is a high-performance attack surface mapper and vulnerability scanner. Just point it to a target, and it will autimagically generate a report with everything it can finds, saving you hours of manual audit and pipping between different tools.
+Phaser is a high-performance and automated attack surface mapper and vulnerability scanner. Just point it to a target, and it will autimagically generate a report with everything it can finds, saving you hours of manual audit and pipping between different tools.
 
 
 <!-- TODO: image architecture -->
