@@ -34,7 +34,7 @@ One of the goals of phaser is to get you started once you finish the book. Eithe
 ### Using cargo
 
 ```shell
-$ cargo install phaser
+$ cargo install -f phaser
 ```
 
 
