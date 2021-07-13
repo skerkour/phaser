@@ -36,6 +36,7 @@ RUN make build_static
 ## Final image
 ####################################################################################################
 # FROM scratch
+# Here we prefer alpine because otherwise the container won't launch on heroku
 FROM alpine:latest
 
 RUN apk update && apk add --no-cache ca-certificates
