@@ -11,7 +11,7 @@
 Phaser is a high-performance and automated attack surface mapper and vulnerability scanner. Just point it to a target, and it will autimagically generate a report with everything it can finds, saving you hours of manual audit and pipping between different tools.
 
 
-<!-- TODO: image architecture -->
+![Architecture](https://raw.githubusercontent.com/skerkour/phaser/main/docs/phaser_architecture.svg)
 
 
 Want to learn how to use Rust to hack the planet? Phaser was extracted and improved from the chapters 2, 3, and 4 of my book [Black Hat Rust](https://academy.kerkour.com/black-hat-rust?coupon=PHASER), where, among other things, we learn how to build a fast async scanner.
