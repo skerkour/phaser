@@ -1,7 +1,6 @@
 #![deny(non_ascii_idents)]
 
 use crate::report::OutputFormat;
-use anyhow::Result;
 use clap::{App, Arg, SubCommand};
 use std::env;
 
@@ -39,7 +38,8 @@ pub use scanner::Scanner;
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
     let cli = App::new(clap::crate_name!())
         .version(clap::crate_version!())
         .about(clap::crate_description!())
@@ -95,7 +95,7 @@ fn main() -> Result<()> {
             "json" => OutputFormat::Json,
             _ => return Err(Error::InvalidOutputFormat(output).into()),
         };
-        cli::scan(target, aggressive, output_format)?;
+        cli::scan(target, aggressive, output_format).await?;
     }
 
     Ok(())

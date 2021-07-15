@@ -18,13 +18,12 @@ pub fn modules() {
     }
 }
 
-pub fn scan(target: &str, aggressive: bool, output_format: OutputFormat) -> Result<(), Error> {
+pub async fn scan(
+    target: &str,
+    aggressive: bool,
+    output_format: OutputFormat,
+) -> Result<(), Error> {
     log::info!("Scanning: {}", target);
-
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("Building tokio's runtime");
 
     let scanner = Scanner::new();
 
@@ -36,7 +35,7 @@ pub fn scan(target: &str, aggressive: bool, output_format: OutputFormat) -> Resu
 
     log::info!("Using {} profile", &profile.name);
 
-    let report = runtime.block_on(async move { scanner.scan(target, profile).await })?;
+    let report = scanner.scan(target, profile).await?;
 
     match output_format {
         OutputFormat::Text => {
