@@ -12,6 +12,8 @@ mod ports;
 mod profile;
 mod report;
 mod scanner;
+mod tools;
+
 pub use error::Error;
 pub use report::Report;
 pub use scanner::Scanner;
@@ -66,10 +68,30 @@ async fn main() -> Result<(), anyhow::Error> {
                 )
                 .arg(
                     Arg::with_name("output")
-                        .help("Out pur format. Valid value are [text, json]")
+                        .help("Output format. Valid value are [text, json]")
                         .long("output")
                         .short("o")
                         .default_value("text"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("tools")
+                .about("Tools to help your offensive operations")
+                .subcommand(
+                    SubCommand::with_name("dnsquat")
+                        .about("Generates permutation for DNS squatting a given domain")
+                        .arg(
+                            Arg::with_name("domain")
+                                .help("The domain name (eg: target)")
+                                .required(true)
+                                .index(1),
+                        )
+                        .arg(
+                            Arg::with_name("tld")
+                                .help("The tld (eg: .com)")
+                                .required(true)
+                                .index(2),
+                        ),
                 ),
         )
         .setting(clap::AppSettings::ArgRequiredElseHelp)
@@ -96,6 +118,16 @@ async fn main() -> Result<(), anyhow::Error> {
             _ => return Err(Error::InvalidOutputFormat(output).into()),
         };
         cli::scan(target, aggressive, output_format).await?;
+    } else if let Some(tools_matches) = cli.subcommand_matches("tools") {
+        if let Some(matches) = tools_matches.subcommand_matches("dnsquat") {
+            let domain = matches.value_of("domain").unwrap().to_lowercase();
+            let tld = matches.value_of("tld").unwrap().to_lowercase();
+            tools::dnsquat(&domain, &tld);
+        } else {
+            // print all tools
+            println!("Tools:");
+            println!("    dnsquat: Generates permutation for DNS squatting a given domain");
+        }
     }
 
     Ok(())
