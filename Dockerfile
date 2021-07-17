@@ -55,7 +55,6 @@ COPY --from=builder_rust /phaser/phaser/dist/ ./
 # Use an unprivileged user.
 USER phaser:phaser
 
-EXPOSE 8080 8443
 CMD ["/phaser/phaser", "--help"]
 
 LABEL maintainer="Sylvain Kerkour <https://kerkour.com>"
