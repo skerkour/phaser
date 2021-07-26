@@ -91,13 +91,40 @@ pub enum TinyVecConstructor<A: Array> {
 /// let empty_tv = tiny_vec!([u8; 16]);
 /// let some_ints = tiny_vec!([i32; 4] => 1, 2, 3);
 /// ```
-#[derive(Clone)]
 #[cfg_attr(docs_rs, doc(cfg(feature = "alloc")))]
 pub enum TinyVec<A: Array> {
   #[allow(missing_docs)]
   Inline(ArrayVec<A>),
   #[allow(missing_docs)]
   Heap(Vec<A::Item>),
+}
+
+impl<A> Clone for TinyVec<A>
+where
+  A: Array + Clone,
+  A::Item: Clone,
+{
+  #[inline]
+  fn clone(&self) -> Self {
+    match self {
+      Self::Heap(v) => Self::Heap(v.clone()),
+      Self::Inline(v) => Self::Inline(v.clone()),
+    }
+  }
+
+  #[inline]
+  fn clone_from(&mut self, o: &Self) {
+    if o.len() > self.len() {
+      self.reserve(o.len() - self.len());
+    } else {
+      self.truncate(o.len());
+    }
+    let (start, end) = o.split_at(self.len());
+    for (dst, src) in self.iter_mut().zip(start) {
+      dst.clone_from(src);
+    }
+    self.extend_from_slice(end);
+  }
 }
 
 impl<A: Array> Default for TinyVec<A> {
@@ -175,6 +202,21 @@ where
     D: Deserializer<'de>,
   {
     deserializer.deserialize_seq(TinyVecVisitor(PhantomData))
+  }
+}
+
+#[cfg(feature = "arbitrary")]
+#[cfg_attr(docs_rs, doc(cfg(feature = "arbitrary")))]
+impl<'a, A> arbitrary::Arbitrary<'a> for TinyVec<A>
+where
+  A: Array,
+  A::Item: arbitrary::Arbitrary<'a>,
+{
+  fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+    let v = Vec::arbitrary(u)?;
+    let mut tv = TinyVec::Heap(v);
+    tv.shrink_to_fit();
+    Ok(tv)
   }
 }
 
@@ -1187,6 +1229,19 @@ impl<A: Array> Iterator for TinyVecIterator<A> {
 
     #[inline]
     fn nth(self: &mut Self, n: usize) -> Option<A::Item>;
+  }
+}
+
+impl<A: Array> DoubleEndedIterator for TinyVecIterator<A> {
+  impl_mirrored! {
+    type Mirror = TinyVecIterator;
+
+    #[inline]
+    fn next_back(self: &mut Self) -> Option<Self::Item>;
+
+    #[cfg(feature = "rustc_1_40")]
+    #[inline]
+    fn nth_back(self: &mut Self, n: usize) -> Option<Self::Item>;
   }
 }
 

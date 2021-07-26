@@ -101,10 +101,46 @@ macro_rules! array_vec {
 /// assert_eq!(no_ints.len(), 0);
 /// ```
 #[repr(C)]
-#[derive(Clone, Copy)]
 pub struct ArrayVec<A> {
   len: u16,
   pub(crate) data: A,
+}
+
+impl<A> Clone for ArrayVec<A>
+where
+  A: Array + Clone,
+  A::Item: Clone,
+{
+  #[inline]
+  fn clone(&self) -> Self {
+    Self { data: self.data.clone(), len: self.len }
+  }
+
+  #[inline]
+  fn clone_from(&mut self, o: &Self) {
+    let iter = self
+      .data
+      .as_slice_mut()
+      .iter_mut()
+      .zip(o.data.as_slice())
+      .take(self.len.max(o.len) as usize);
+    for (dst, src) in iter {
+      dst.clone_from(src)
+    }
+    if let Some(to_drop) =
+      self.data.as_slice_mut().get_mut((o.len as usize)..(self.len as usize))
+    {
+      to_drop.iter_mut().for_each(|x| drop(take(x)));
+    }
+    self.len = o.len;
+  }
+}
+
+impl<A> Copy for ArrayVec<A>
+where
+  A: Array + Copy,
+  A::Item: Copy,
+{
 }
 
 impl<A: Array> Default for ArrayVec<A> {
@@ -177,6 +213,22 @@ where
     D: Deserializer<'de>,
   {
     deserializer.deserialize_seq(ArrayVecVisitor(PhantomData))
+  }
+}
+
+#[cfg(all(feature = "arbitrary", feature = "nightly_const_generics"))]
+#[cfg_attr(
+  docs_rs,
+  doc(cfg(all(feature = "arbitrary", feature = "nightly_const_generics")))
+)]
+impl<'a, T, const N: usize> arbitrary::Arbitrary<'a> for ArrayVec<[T; N]>
+where
+  T: arbitrary::Arbitrary<'a> + Default,
+{
+  fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+    let v = <[T; N]>::arbitrary(u)?;
+    let av = ArrayVec::from(v);
+    Ok(av)
   }
 }
 

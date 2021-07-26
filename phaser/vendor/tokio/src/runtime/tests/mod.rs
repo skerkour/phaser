@@ -1,26 +1,36 @@
-#[cfg(not(all(tokio_unstable, feature = "tracing")))]
-use crate::runtime::task::joinable;
+use self::unowned_wrapper::unowned;
 
-#[cfg(all(tokio_unstable, feature = "tracing"))]
-use self::joinable_wrapper::joinable;
+mod unowned_wrapper {
+    use crate::runtime::blocking::NoopSchedule;
+    use crate::runtime::task::{JoinHandle, Notified};
 
-#[cfg(all(tokio_unstable, feature = "tracing"))]
-mod joinable_wrapper {
-    use crate::runtime::task::{JoinHandle, Notified, Schedule};
-    use tracing::Instrument;
-
-    pub(crate) fn joinable<T, S>(task: T) -> (Notified<S>, JoinHandle<T::Output>)
+    #[cfg(all(tokio_unstable, feature = "tracing"))]
+    pub(crate) fn unowned<T>(task: T) -> (Notified<NoopSchedule>, JoinHandle<T::Output>)
     where
         T: std::future::Future + Send + 'static,
-        S: Schedule,
+        T::Output: Send + 'static,
     {
+        use tracing::Instrument;
         let span = tracing::trace_span!("test_span");
-        crate::runtime::task::joinable(task.instrument(span))
+        let task = task.instrument(span);
+        let (task, handle) = crate::runtime::task::unowned(task, NoopSchedule);
+        (task, handle)
+    }
+
+    #[cfg(not(all(tokio_unstable, feature = "tracing")))]
+    pub(crate) fn unowned<T>(task: T) -> (Notified<NoopSchedule>, JoinHandle<T::Output>)
+    where
+        T: std::future::Future + Send + 'static,
+        T::Output: Send + 'static,
+    {
+        let (task, handle) = crate::runtime::task::unowned(task, NoopSchedule);
+        (task, handle)
     }
 }
 
 cfg_loom! {
     mod loom_basic_scheduler;
+    mod loom_local;
     mod loom_blocking;
     mod loom_oneshot;
     mod loom_pool;
@@ -30,6 +40,9 @@ cfg_loom! {
 
 cfg_not_loom! {
     mod queue;
+
+    #[cfg(not(miri))]
+    mod task_combinations;
 
     #[cfg(miri)]
     mod task;

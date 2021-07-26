@@ -732,7 +732,7 @@ impl Build {
     /// This option sets the `-stdlib` flag, which is only supported by some
     /// compilers (clang, icc) but not by others (gcc). The library will not
     /// detect which compiler is used, as such it is the responsibility of the
-    /// caller to ensure that this option is only used in conjuction with a
+    /// caller to ensure that this option is only used in conjunction with a
     /// compiler which supports the `-stdlib` flag.
     ///
     /// A value of `None` indicates that no specific C++ standard library should
@@ -1484,6 +1484,10 @@ impl Build {
                                 .into(),
                             );
                         }
+                    } else if target.starts_with("riscv64gc-") {
+                        cmd.args.push(
+                            format!("--target={}", target.replace("riscv64gc", "riscv64")).into(),
+                        );
                     } else {
                         cmd.args.push(format!("--target={}", target).into());
                     }
@@ -1849,7 +1853,7 @@ impl Build {
             for flag in self.ar_flags.iter() {
                 cmd.arg(flag);
             }
-            // If the library file already exists, add the libary name
+            // If the library file already exists, add the library name
             // as an argument to let lib.exe know we are appending the objs.
             if dst.exists() {
                 cmd.arg(dst);
@@ -2124,7 +2128,7 @@ impl Build {
         //
         // As the shell script calls the main clang binary, the command line limit length
         // on Windows is restricted to around 8k characters instead of around 32k characters.
-        // To remove this limit, we call the main clang binary directly and contruct the
+        // To remove this limit, we call the main clang binary directly and construct the
         // `--target=` ourselves.
         if host.contains("windows") && android_clang_compiler_uses_target_arg_internally(&tool.path)
         {
@@ -2652,7 +2656,7 @@ impl Tool {
     }
 
     #[cfg(windows)]
-    /// Explictly set the `ToolFamily`, skipping name-based detection.
+    /// Explicitly set the `ToolFamily`, skipping name-based detection.
     fn with_family(path: PathBuf, family: ToolFamily) -> Self {
         Self {
             path: path,
@@ -3086,6 +3090,12 @@ fn map_darwin_target_from_rust_to_compiler_architecture(target: &str) -> Option<
         Some("arm64e")
     } else if target.contains("aarch64") {
         Some("arm64")
+    } else if target.contains("i686") {
+        Some("i386")
+    } else if target.contains("powerpc") {
+        Some("ppc")
+    } else if target.contains("powerpc64") {
+        Some("ppc64")
     } else {
         None
     }
