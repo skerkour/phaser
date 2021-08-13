@@ -53,14 +53,14 @@ $ phaser modules
 # Display scan options
 $ phaser scan --help
 # Scan a target
-$ phaser scan --aggressive target.local
+$ phaser scan --aggressive kerkour.com
 ```
 
 
 ### With Docker
 
 ```shell
-$ docker run -ti ghcr.io/skerkour/phaser phaser scan --aggressive target.com
+$ docker run -ti ghcr.io/skerkour/phaser phaser scan --aggressive kerkour.com
 ```
 
 ## License
