@@ -53,7 +53,7 @@ $ phaser modules
 # Display scan options
 $ phaser scan --help
 # Scan a target
-$ phaser scan --aggressive target.com
+$ phaser scan --aggressive target.local
 ```
 
 
