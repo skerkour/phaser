@@ -1223,6 +1223,8 @@ extern "C" {
     pub fn ntp_adjtime(buf: *mut timex) -> ::c_int;
     #[link_name = "ntp_gettimex"]
     pub fn ntp_gettime(buf: *mut ntptimeval) -> ::c_int;
+    pub fn clock_adjtime(clk_id: ::clockid_t, buf: *mut ::timex) -> ::c_int;
+
     pub fn copy_file_range(
         fd_in: ::c_int,
         off_in: *mut ::off64_t,
@@ -1276,6 +1278,8 @@ extern "C" {
 
     // Added in `glibc` 2.25
     pub fn explicit_bzero(s: *mut ::c_void, len: ::size_t);
+    // Added in `glibc` 2.29
+    pub fn reallocarray(ptr: *mut ::c_void, nmemb: ::size_t, size: ::size_t) -> *mut ::c_void;
 }
 
 extern "C" {
@@ -1322,6 +1326,7 @@ extern "C" {
     pub fn sched_getcpu() -> ::c_int;
     pub fn mallinfo() -> ::mallinfo;
     pub fn mallinfo2() -> ::mallinfo2;
+    pub fn malloc_info(options: ::c_int, stream: *mut ::FILE) -> ::c_int;
     pub fn malloc_usable_size(ptr: *mut ::c_void) -> ::size_t;
     pub fn getpwent_r(
         pwd: *mut ::passwd,
@@ -1337,6 +1342,8 @@ extern "C" {
     ) -> ::c_int;
     pub fn pthread_getname_np(thread: ::pthread_t, name: *mut ::c_char, len: ::size_t) -> ::c_int;
     pub fn pthread_setname_np(thread: ::pthread_t, name: *const ::c_char) -> ::c_int;
+
+    pub fn sethostid(hostid: ::c_long) -> ::c_int;
 }
 
 extern "C" {

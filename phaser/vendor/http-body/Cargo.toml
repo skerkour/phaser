@@ -13,7 +13,7 @@
 [package]
 edition = "2018"
 name = "http-body"
-version = "0.4.2"
+version = "0.4.3"
 authors = ["Carl Lerche <me@carllerche.com>", "Lucio Franco <luciofranco14@gmail.com>", "Sean McArthur <sean@seanmonstar.com>"]
 description = "Trait representing an asynchronous, streaming, HTTP request or response body.\n"
 documentation = "https://docs.rs/http-body"

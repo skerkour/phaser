@@ -422,6 +422,12 @@ s_no_extra_traits! {
         pub ivlen: u32,
         pub iv: [::c_uchar; 0],
     }
+
+    pub struct prop_info {
+        __name: [::c_char; 32],
+        __serial: ::c_uint,
+        __value: [[::c_char; 4]; 23],
+    }
 }
 
 cfg_if! {
@@ -738,6 +744,24 @@ cfg_if! {
         impl ::hash::Hash for af_alg_iv {
             fn hash<H: ::hash::Hasher>(&self, state: &mut H) {
                 self.as_slice().hash(state);
+            }
+        }
+
+        impl PartialEq for prop_info {
+            fn eq(&self, other: &prop_info) -> bool {
+                self.__name == other.__name &&
+                    self.__serial == other.__serial &&
+                    self.__value == other.__value
+            }
+        }
+        impl Eq for prop_info {}
+        impl ::fmt::Debug for prop_info {
+            fn fmt(&self, f: &mut ::fmt::Formatter) -> ::fmt::Result {
+                f.debug_struct("prop_info")
+                    .field("__name", &self.__name)
+                    .field("__serial", &self.__serial)
+                    .field("__value", &self.__value)
+                    .finish()
             }
         }
     }
@@ -1277,6 +1301,8 @@ pub const PTRACE_SETOPTIONS: ::c_int = 0x4200;
 pub const PTRACE_GETEVENTMSG: ::c_int = 0x4201;
 pub const PTRACE_GETSIGINFO: ::c_int = 0x4202;
 pub const PTRACE_SETSIGINFO: ::c_int = 0x4203;
+pub const PTRACE_GETREGSET: ::c_int = 0x4204;
+pub const PTRACE_SETREGSET: ::c_int = 0x4205;
 
 pub const PTRACE_EVENT_STOP: ::c_int = 128;
 
@@ -2398,6 +2424,8 @@ pub const SCHED_BATCH: ::c_int = 3;
 pub const SCHED_IDLE: ::c_int = 5;
 pub const SCHED_DEADLINE: ::c_int = 6;
 
+pub const SCHED_RESET_ON_FORK: ::c_int = 0x40000000;
+
 // bits/seek_constants.h
 pub const SEEK_DATA: ::c_int = 3;
 pub const SEEK_HOLE: ::c_int = 4;
@@ -2410,6 +2438,11 @@ pub const PF_VSOCK: ::c_int = AF_VSOCK;
 
 // sys/system_properties.h
 pub const PROP_VALUE_MAX: ::c_int = 92;
+pub const PROP_NAME_MAX: ::c_int = 32;
+
+// sys/prctl.h
+pub const PR_SET_VMA: ::c_int = 0x53564d41;
+pub const PR_SET_VMA_ANON_NAME: ::c_int = 0;
 
 f! {
     pub fn CMSG_NXTHDR(mhdr: *const msghdr,
@@ -2543,6 +2576,9 @@ extern "C" {
     pub fn __sched_cpucount(setsize: ::size_t, set: *const cpu_set_t) -> ::c_int;
     pub fn sched_getcpu() -> ::c_int;
     pub fn mallinfo() -> ::mallinfo;
+    // available from API 23
+    pub fn malloc_info(options: ::c_int, stream: *mut ::FILE) -> ::c_int;
+
     pub fn malloc_usable_size(ptr: *const ::c_void) -> ::size_t;
 
     pub fn utmpname(name: *const ::c_char) -> ::c_int;
@@ -2862,6 +2898,12 @@ extern "C" {
 
     pub fn __system_property_set(__name: *const ::c_char, __value: *const ::c_char) -> ::c_int;
     pub fn __system_property_get(__name: *const ::c_char, __value: *mut ::c_char) -> ::c_int;
+    pub fn __system_property_find(__name: *const ::c_char) -> *const prop_info;
+    pub fn __system_property_find_nth(__n: ::c_uint) -> *const prop_info;
+    pub fn __system_property_foreach(
+        __callback: unsafe extern "C" fn(__pi: *const prop_info, __cookie: *mut ::c_void),
+        __cookie: *mut ::c_void,
+    ) -> ::c_int;
 
     // #include <link.h>
     /// Only available in API Version 21+
@@ -2879,6 +2921,10 @@ extern "C" {
     pub fn arc4random() -> u32;
     pub fn arc4random_uniform(__upper_bound: u32) -> u32;
     pub fn arc4random_buf(__buf: *mut ::c_void, __n: ::size_t);
+
+    pub fn reallocarray(ptr: *mut ::c_void, nmemb: ::size_t, size: ::size_t) -> *mut ::c_void;
+
+    pub fn pthread_getcpuclockid(thread: ::pthread_t, clk_id: *mut ::clockid_t) -> ::c_int;
 }
 
 cfg_if! {

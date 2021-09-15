@@ -61,15 +61,12 @@ enum CurrentInner {
 impl Id {
     /// Constructs a new span ID from the given `u64`.
     ///
-    /// <div class="information">
-    ///     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-    /// </div>
     /// <div class="example-wrap" style="display:inline-block">
     /// <pre class="ignore" style="white-space:normal;font:inherit;">
     /// <strong>Note</strong>: Span IDs must be greater than zero.</pre></div>
     ///
     /// # Panics
-    /// - If the provided `u64` is 0
+    /// - If the provided `u64` is 0.
     pub fn from_u64(u: u64) -> Self {
         Id(NonZeroU64::new(u).expect("span IDs must be > 0"))
     }
@@ -303,7 +300,7 @@ impl Current {
     /// Borrows the `Metadata` of the current span, if one exists and is known.
     pub fn metadata(&self) -> Option<&'static Metadata<'static>> {
         match self.inner {
-            CurrentInner::Current { ref metadata, .. } => Some(*metadata),
+            CurrentInner::Current { metadata, .. } => Some(metadata),
             _ => None,
         }
     }

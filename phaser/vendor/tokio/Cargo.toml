@@ -13,11 +13,11 @@
 [package]
 edition = "2018"
 name = "tokio"
-version = "1.9.0"
+version = "1.11.0"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = "An event-driven, non-blocking I/O platform for writing asynchronous I/O\nbacked applications.\n"
 homepage = "https://tokio.rs"
-documentation = "https://docs.rs/tokio/1.9.0/tokio/"
+documentation = "https://docs.rs/tokio/1.11.0/tokio/"
 readme = "README.md"
 keywords = ["io", "async", "non-blocking", "futures"]
 categories = ["asynchronous", "network-programming"]
@@ -66,6 +66,9 @@ version = "0.3"
 version = "0.3.0"
 features = ["async-await"]
 
+[dev-dependencies.mockall]
+version = "0.10.2"
+
 [dev-dependencies.proptest]
 version = "1"
 
@@ -98,8 +101,9 @@ process = ["bytes", "once_cell", "libc", "mio/os-poll", "mio/os-util", "mio/uds"
 rt = []
 rt-multi-thread = ["num_cpus", "rt"]
 signal = ["once_cell", "libc", "mio/os-poll", "mio/uds", "mio/os-util", "signal-hook-registry", "winapi/consoleapi"]
+stats = []
 sync = []
-test-util = []
+test-util = ["rt", "sync", "time"]
 time = []
 [target."cfg(loom)".dev-dependencies.loom]
 version = "0.5"

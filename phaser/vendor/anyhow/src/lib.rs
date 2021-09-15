@@ -128,10 +128,11 @@
 //!   # ;
 //!   ```
 //!
-//! - If using the nightly channel, a backtrace is captured and printed with the
-//!   error if the underlying error type does not already provide its own. In
-//!   order to see backtraces, they must be enabled through the environment
-//!   variables described in [`std::backtrace`]:
+//! - If using the nightly channel, or stable with `features = ["backtrace"]`, a
+//!   backtrace is captured and printed with the error if the underlying error
+//!   type does not already provide its own. In order to see backtraces, they
+//!   must be enabled through the environment variables described in
+//!   [`std::backtrace`]:
 //!
 //!   - If you want panics and errors to both have backtraces, set
 //!     `RUST_BACKTRACE=1`;
@@ -209,7 +210,7 @@
 //! will require an explicit `.map_err(Error::msg)` when working with a
 //! non-Anyhow error type inside a function that returns Anyhow's error type.
 
-#![doc(html_root_url = "https://docs.rs/anyhow/1.0.42")]
+#![doc(html_root_url = "https://docs.rs/anyhow/1.0.44")]
 #![cfg_attr(backtrace, feature(backtrace))]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -625,6 +626,7 @@ pub mod private {
         pub use crate::kind::BoxedKind;
     }
 
+    #[cold]
     pub fn new_adhoc<M>(message: M) -> Error
     where
         M: Display + Debug + Send + Sync + 'static,

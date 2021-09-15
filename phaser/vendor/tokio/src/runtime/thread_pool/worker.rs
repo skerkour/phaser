@@ -64,6 +64,7 @@ use crate::park::{Park, Unpark};
 use crate::runtime;
 use crate::runtime::enter::EnterContext;
 use crate::runtime::park::{Parker, Unparker};
+use crate::runtime::stats::{RuntimeStats, WorkerStatsBatcher};
 use crate::runtime::task::{Inject, JoinHandle, OwnedTasks};
 use crate::runtime::thread_pool::{AtomicCell, Idle};
 use crate::runtime::{queue, task};
@@ -112,6 +113,9 @@ struct Core {
     /// borrow checker happy.
     park: Option<Parker>,
 
+    /// Batching stats so they can be submitted to RuntimeStats.
+    stats: WorkerStatsBatcher,
+
     /// Fast random number generator.
     rand: FastRand,
 }
@@ -137,6 +141,9 @@ pub(super) struct Shared {
     /// stolen by a thread that was spawned as part of `block_in_place`.
     #[allow(clippy::vec_box)] // we're moving an already-boxed value
     shutdown_cores: Mutex<Vec<Box<Core>>>,
+
+    /// Collect stats from the runtime.
+    stats: RuntimeStats,
 }
 
 /// Used to communicate with a worker from other threads.
@@ -179,7 +186,7 @@ pub(super) fn create(size: usize, park: Parker) -> (Arc<Shared>, Launch) {
     let mut remotes = vec![];
 
     // Create the local queues
-    for _ in 0..size {
+    for i in 0..size {
         let (steal, run_queue) = queue::local();
 
         let park = park.clone();
@@ -192,6 +199,7 @@ pub(super) fn create(size: usize, park: Parker) -> (Arc<Shared>, Launch) {
             is_searching: false,
             is_shutdown: false,
             park: Some(park),
+            stats: WorkerStatsBatcher::new(i),
             rand: FastRand::new(seed()),
         }));
 
@@ -204,6 +212,7 @@ pub(super) fn create(size: usize, park: Parker) -> (Arc<Shared>, Launch) {
         idle: Idle::new(size),
         owned: OwnedTasks::new(),
         shutdown_cores: Mutex::new(vec![]),
+        stats: RuntimeStats::new(size),
     });
 
     let mut launch = Launch(vec![]);
@@ -384,11 +393,14 @@ impl Context {
     }
 
     fn run_task(&self, task: Notified, mut core: Box<Core>) -> RunResult {
+        let task = self.worker.shared.owned.assert_owner(task);
+
         // Make sure the worker is not in the **searching** state. This enables
         // another idle worker to try to steal work.
         core.transition_from_searching(&self.worker);
 
         // Make the core available to the runtime context
+        core.stats.incr_poll_count();
         *self.core.borrow_mut() = Some(core);
 
         // Run the task
@@ -413,7 +425,9 @@ impl Context {
 
                 if coop::has_budget_remaining() {
                     // Run the LIFO task, then loop
+                    core.stats.incr_poll_count();
                     *self.core.borrow_mut() = Some(core);
+                    let task = self.worker.shared.owned.assert_owner(task);
                     task.run();
                 } else {
                     // Not enough budget left to run the LIFO task, push it to
@@ -459,6 +473,8 @@ impl Context {
         // Take the parker out of core
         let mut park = core.park.take().expect("park missing");
 
+        core.stats.about_to_park();
+
         // Store `core` in context
         *self.core.borrow_mut() = Some(core);
 
@@ -479,6 +495,8 @@ impl Context {
         if core.run_queue.is_stealable() {
             self.worker.shared.notify_parked();
         }
+
+        core.stats.returned_from_park();
 
         core
     }
@@ -521,7 +539,10 @@ impl Core {
             }
 
             let target = &worker.shared.remotes[i];
-            if let Some(task) = target.steal.steal_into(&mut self.run_queue) {
+            if let Some(task) = target
+                .steal
+                .steal_into(&mut self.run_queue, &mut self.stats)
+            {
                 return Some(task);
             }
         }
@@ -587,6 +608,8 @@ impl Core {
 
     /// Runs maintenance work such as checking the pool's state.
     fn maintenance(&mut self, worker: &Worker) {
+        self.stats.submit(&worker.shared.stats);
+
         if !self.is_shutdown {
             // Check if the scheduler has been shutdown
             self.is_shutdown = worker.inject().is_closed();
@@ -596,13 +619,10 @@ impl Core {
     /// Signals all tasks to shut down, and waits for them to complete. Must run
     /// before we enter the single-threaded phase of shutdown processing.
     fn pre_shutdown(&mut self, worker: &Worker) {
-        // The OwnedTasks was closed in Shared::close.
-        debug_assert!(worker.shared.owned.is_closed());
-
         // Signal to all tasks to shut down.
-        while let Some(header) = worker.shared.owned.pop_back() {
-            header.shutdown();
-        }
+        worker.shared.owned.close_and_shutdown_all();
+
+        self.stats.submit(&worker.shared.stats);
     }
 
     /// Shutdown the core
@@ -626,8 +646,7 @@ impl Worker {
 
 impl task::Schedule for Arc<Shared> {
     fn release(&self, task: &Task) -> Option<Task> {
-        // SAFETY: Inserted into owned in bind.
-        unsafe { self.owned.remove(task) }
+        self.owned.remove(task)
     }
 
     fn schedule(&self, task: Notified) {
@@ -652,6 +671,10 @@ impl Shared {
         }
 
         handle
+    }
+
+    pub(crate) fn stats(&self) -> &RuntimeStats {
+        &self.stats
     }
 
     pub(super) fn schedule(&self, task: Notified, is_yield: bool) {
@@ -705,7 +728,6 @@ impl Shared {
 
     pub(super) fn close(&self) {
         if self.inject.close() {
-            self.owned.close();
             self.notify_all();
         }
     }
@@ -762,8 +784,10 @@ impl Shared {
         }
 
         // Drain the injection queue
+        //
+        // We already shut down every task, so we can simply drop the tasks.
         while let Some(task) = self.inject.pop() {
-            task.shutdown();
+            drop(task);
         }
     }
 

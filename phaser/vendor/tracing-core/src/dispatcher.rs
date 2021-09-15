@@ -108,9 +108,6 @@
 //! // `my_subscriber` is now the default
 //! ```
 //!
-//! <div class="information">
-//!     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-//! </div>
 //! <div class="example-wrap" style="display:inline-block">
 //! <pre class="ignore" style="white-space:normal;font:inherit;">
 //! <strong>Note</strong>:the thread-local scoped dispatcher
@@ -134,7 +131,7 @@
 //! [`Dispatch`]: struct.Dispatch.html
 use crate::{
     callsite, span,
-    subscriber::{self, Subscriber},
+    subscriber::{self, NoSubscriber, Subscriber},
     Event, LevelFilter, Metadata,
 };
 
@@ -211,9 +208,6 @@ pub struct DefaultGuard(Option<Dispatch>);
 /// The default dispatcher is used when creating a new [span] or
 /// [`Event`].
 ///
-/// <div class="information">
-///     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-/// </div>
 /// <div class="example-wrap" style="display:inline-block">
 /// <pre class="ignore" style="white-space:normal;font:inherit;">
 /// <strong>Note</strong>: This function required the Rust standard library.
@@ -239,9 +233,6 @@ pub fn with_default<T>(dispatcher: &Dispatch, f: impl FnOnce() -> T) -> T {
 /// Sets the dispatch as the default dispatch for the duration of the lifetime
 /// of the returned DefaultGuard
 ///
-/// <div class="information">
-///     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-/// </div>
 /// <div class="example-wrap" style="display:inline-block">
 /// <pre class="ignore" style="white-space:normal;font:inherit;">
 /// <strong>Note</strong>: This function required the Rust standard library.
@@ -268,8 +259,6 @@ pub fn set_default(dispatcher: &Dispatch) -> DefaultGuard {
 /// Returns `Err` if the global default has already been set.
 ///
 ///
-/// <div class="information">
-///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;<span class="tooltiptext">Warning</span></div>
 /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
 /// <strong>Warning</strong>: In general, libraries should <em>not</em> call
 /// <code>set_global_default()</code>! Doing so will cause conflicts when
@@ -415,7 +404,7 @@ impl Dispatch {
     #[inline]
     pub fn none() -> Self {
         Dispatch {
-            subscriber: Arc::new(NoSubscriber),
+            subscriber: Arc::new(NoSubscriber::default()),
         }
     }
 
@@ -572,7 +561,7 @@ impl Dispatch {
     /// [`new_span`]: ../subscriber/trait.Subscriber.html#method.new_span
     #[inline]
     pub fn clone_span(&self, id: &span::Id) -> span::Id {
-        self.subscriber.clone_span(&id)
+        self.subscriber.clone_span(id)
     }
 
     /// Notifies the subscriber that a [span ID] has been dropped.
@@ -585,9 +574,6 @@ impl Dispatch {
     /// This calls the [`drop_span`] function on the [`Subscriber`] that this
     ///  `Dispatch` forwards to.
     ///
-    /// <div class="information">
-    ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;<span class="tooltiptext">Warning</span></div>
-    /// </div>
     /// <div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
     /// <strong>Deprecated</strong>: The <a href="#method.try_close"><code>try_close</code></a>
     /// method is functionally identical, but returns <code>true</code> if the span is now closed.
@@ -675,32 +661,6 @@ where
     }
 }
 
-struct NoSubscriber;
-impl Subscriber for NoSubscriber {
-    #[inline]
-    fn register_callsite(&self, _: &'static Metadata<'static>) -> subscriber::Interest {
-        subscriber::Interest::never()
-    }
-
-    fn new_span(&self, _: &span::Attributes<'_>) -> span::Id {
-        span::Id::from_u64(0xDEAD)
-    }
-
-    fn event(&self, _event: &Event<'_>) {}
-
-    fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {}
-
-    fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {}
-
-    #[inline]
-    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
-        false
-    }
-
-    fn enter(&self, _span: &span::Id) {}
-    fn exit(&self, _span: &span::Id) {}
-}
-
 impl Registrar {
     pub(crate) fn try_register(
         &self,
@@ -738,7 +698,7 @@ impl State {
     #[inline]
     fn enter(&self) -> Option<Entered<'_>> {
         if self.can_enter.replace(false) {
-            Some(Entered(&self))
+            Some(Entered(self))
         } else {
             None
         }
@@ -803,13 +763,13 @@ mod test {
 
     #[test]
     fn dispatch_is() {
-        let dispatcher = Dispatch::new(NoSubscriber);
+        let dispatcher = Dispatch::new(NoSubscriber::default());
         assert!(dispatcher.is::<NoSubscriber>());
     }
 
     #[test]
     fn dispatch_downcasts() {
-        let dispatcher = Dispatch::new(NoSubscriber);
+        let dispatcher = Dispatch::new(NoSubscriber::default());
         assert!(dispatcher.downcast_ref::<NoSubscriber>().is_some());
     }
 

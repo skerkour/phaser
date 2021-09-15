@@ -5,7 +5,7 @@
 //! APIs. Only the things that are guaranteed to exist in the global scope by
 //! the ECMAScript standard.
 //!
-//! https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
+//! <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects>
 //!
 //! ## A Note About `camelCase`, `snake_case`, and Naming Conventions
 //!
@@ -18,9 +18,15 @@
 
 #![doc(html_root_url = "https://docs.rs/js-sys/0.2")]
 
+use core::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Rem, Shl, Shr, Sub};
+use std::cmp::Ordering;
+use std::convert::{self, Infallible};
 use std::f64;
 use std::fmt;
+use std::iter::{self, Product, Sum};
 use std::mem;
+use std::str;
+use std::str::FromStr;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -44,6 +50,167 @@ use wasm_bindgen::JsCast;
 //
 // * Arguments that are `JsValue`s or imported JavaScript types should be taken
 //   by reference.
+
+macro_rules! forward_deref_unop {
+    (impl $imp:ident, $method:ident for $t:ty) => {
+        impl $imp for $t {
+            type Output = <&'static $t as $imp>::Output;
+
+            #[inline]
+            fn $method(self) -> Self::Output {
+                $imp::$method(&self)
+            }
+        }
+    };
+}
+
+macro_rules! forward_deref_binop {
+    (impl $imp:ident, $method:ident for $t:ty) => {
+        impl<'a> $imp<$t> for &'a $t {
+            type Output = <&'static $t as $imp<&'static $t>>::Output;
+
+            #[inline]
+            fn $method(self, other: $t) -> Self::Output {
+                $imp::$method(self, &other)
+            }
+        }
+
+        impl $imp<&$t> for $t {
+            type Output = <&'static $t as $imp<&'static $t>>::Output;
+
+            #[inline]
+            fn $method(self, other: &$t) -> Self::Output {
+                $imp::$method(&self, other)
+            }
+        }
+
+        impl $imp<$t> for $t {
+            type Output = <&'static $t as $imp<&'static $t>>::Output;
+
+            #[inline]
+            fn $method(self, other: $t) -> Self::Output {
+                $imp::$method(&self, &other)
+            }
+        }
+    };
+}
+
+macro_rules! forward_js_unop {
+    (impl $imp:ident, $method:ident for $t:ty) => {
+        impl $imp for &$t {
+            type Output = $t;
+
+            #[inline]
+            fn $method(self) -> Self::Output {
+                $imp::$method(JsValue::as_ref(self)).unchecked_into()
+            }
+        }
+
+        forward_deref_unop!(impl $imp, $method for $t);
+    };
+}
+
+macro_rules! forward_js_binop {
+    (impl $imp:ident, $method:ident for $t:ty) => {
+        impl $imp<&$t> for &$t {
+            type Output = $t;
+
+            #[inline]
+            fn $method(self, other: &$t) -> Self::Output {
+                $imp::$method(JsValue::as_ref(self), JsValue::as_ref(other)).unchecked_into()
+            }
+        }
+
+        forward_deref_binop!(impl $imp, $method for $t);
+    };
+}
+
+macro_rules! sum_product {
+    ($($a:ident)*) => ($(
+        impl Sum for $a {
+            #[inline]
+            fn sum<I: iter::Iterator<Item=Self>>(iter: I) -> Self {
+                iter.fold(
+                    $a::from(0),
+                    |a, b| a + b,
+                )
+            }
+        }
+
+        impl Product for $a {
+            #[inline]
+            fn product<I: iter::Iterator<Item=Self>>(iter: I) -> Self {
+                iter.fold(
+                    $a::from(1),
+                    |a, b| a * b,
+                )
+            }
+        }
+
+        impl<'a> Sum<&'a $a> for $a {
+            fn sum<I: iter::Iterator<Item=&'a Self>>(iter: I) -> Self {
+                iter.fold(
+                    $a::from(0),
+                    |a, b| a + b,
+                )
+            }
+        }
+
+        impl<'a> Product<&'a $a> for $a {
+            #[inline]
+            fn product<I: iter::Iterator<Item=&'a Self>>(iter: I) -> Self {
+                iter.fold(
+                    $a::from(1),
+                    |a, b| a * b,
+                )
+            }
+        }
+    )*)
+}
+
+macro_rules! partialord_ord {
+    ($t:ident) => {
+        impl PartialOrd for $t {
+            #[inline]
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+
+            #[inline]
+            fn lt(&self, other: &Self) -> bool {
+                JsValue::as_ref(self).lt(JsValue::as_ref(other))
+            }
+
+            #[inline]
+            fn le(&self, other: &Self) -> bool {
+                JsValue::as_ref(self).le(JsValue::as_ref(other))
+            }
+
+            #[inline]
+            fn ge(&self, other: &Self) -> bool {
+                JsValue::as_ref(self).ge(JsValue::as_ref(other))
+            }
+
+            #[inline]
+            fn gt(&self, other: &Self) -> bool {
+                JsValue::as_ref(self).gt(JsValue::as_ref(other))
+            }
+        }
+
+        impl Ord for $t {
+            #[inline]
+            fn cmp(&self, other: &Self) -> Ordering {
+                if self == other {
+                    Ordering::Equal
+                } else if self.lt(other) {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
+        }
+    };
+}
 
 #[wasm_bindgen]
 extern "C" {
@@ -490,13 +657,29 @@ where
     where
         T: IntoIterator<Item = A>,
     {
-        let out = Array::new();
-
-        for value in iter {
-            out.push(value.as_ref());
-        }
-
+        let mut out = Array::new();
+        out.extend(iter);
         out
+    }
+}
+
+impl<A> std::iter::Extend<A> for Array
+where
+    A: AsRef<JsValue>,
+{
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = A>,
+    {
+        for value in iter {
+            self.push(value.as_ref());
+        }
+    }
+}
+
+impl Default for Array {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -766,6 +949,219 @@ pub mod Atomics {
     }
 }
 
+// BigInt
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(extends = Object, is_type_of = |v| v.is_bigint(), typescript_type = "bigint")]
+    #[derive(Clone, PartialEq, Eq)]
+    pub type BigInt;
+
+    #[wasm_bindgen(catch, js_name = BigInt)]
+    fn new_bigint(value: &JsValue) -> Result<BigInt, Error>;
+
+    #[wasm_bindgen(js_name = BigInt)]
+    fn new_bigint_unchecked(value: &JsValue) -> BigInt;
+
+    /// Clamps a BigInt value to a signed integer value, and returns that value.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/asIntN)
+    #[wasm_bindgen(static_method_of = BigInt, js_name = asIntN)]
+    pub fn as_int_n(bits: f64, bigint: &BigInt) -> BigInt;
+
+    /// Clamps a BigInt value to an unsigned integer value, and returns that value.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/asUintN)
+    #[wasm_bindgen(static_method_of = BigInt, js_name = asUintN)]
+    pub fn as_uint_n(bits: f64, bigint: &BigInt) -> BigInt;
+
+    /// Returns a string with a language-sensitive representation of this BigInt value. Overrides the [`Object.prototype.toLocaleString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/toLocaleString) method.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/toLocaleString)
+    #[wasm_bindgen(method, js_name = toLocaleString)]
+    pub fn to_locale_string(this: &BigInt, locales: &JsValue, options: &JsValue) -> JsString;
+
+    /// Returns a string representing this BigInt value in the specified radix (base). Overrides the [`Object.prototype.toString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/toString) method.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/toString)
+    #[wasm_bindgen(catch, method, js_name = toString)]
+    pub fn to_string(this: &BigInt, radix: u8) -> Result<JsString, RangeError>;
+
+    #[wasm_bindgen(method, js_name = toString)]
+    fn to_string_unchecked(this: &BigInt, radix: u8) -> String;
+
+    /// Returns this BigInt value. Overrides the [`Object.prototype.valueOf()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/valueOf) method.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/valueOf)
+    #[wasm_bindgen(method, js_name = valueOf)]
+    pub fn value_of(this: &BigInt, radix: u8) -> BigInt;
+}
+
+impl BigInt {
+    /// Creates a new BigInt value.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/BigInt)
+    #[inline]
+    pub fn new(value: &JsValue) -> Result<BigInt, Error> {
+        new_bigint(value)
+    }
+
+    /// Applies the binary `/` JS operator on two `BigInt`s, catching and returning any `RangeError` thrown.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Division)
+    pub fn checked_div(&self, rhs: &Self) -> Result<Self, RangeError> {
+        let result = JsValue::as_ref(self).checked_div(JsValue::as_ref(rhs));
+
+        if result.is_instance_of::<RangeError>() {
+            Err(result.unchecked_into())
+        } else {
+            Ok(result.unchecked_into())
+        }
+    }
+
+    /// Applies the binary `**` JS operator on the two `BigInt`s.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation)
+    #[inline]
+    pub fn pow(&self, rhs: &Self) -> Self {
+        JsValue::as_ref(self)
+            .pow(JsValue::as_ref(rhs))
+            .unchecked_into()
+    }
+}
+
+macro_rules! bigint_from {
+    ($($x:ident)*) => ($(
+        impl From<$x> for BigInt {
+            #[inline]
+            fn from(x: $x) -> BigInt {
+                new_bigint_unchecked(&JsValue::from(x))
+            }
+        }
+
+        impl PartialEq<$x> for BigInt {
+            #[inline]
+            fn eq(&self, other: &$x) -> bool {
+                JsValue::from(self) == BigInt::from(*other).unchecked_into::<JsValue>()
+            }
+        }
+    )*)
+}
+bigint_from!(i8 u8 i16 u16 i32 u32);
+
+macro_rules! bigint_from_big {
+    ($($x:ident)*) => ($(
+        impl From<$x> for BigInt {
+            #[inline]
+            fn from(x: $x) -> BigInt {
+                JsValue::from(x).unchecked_into()
+            }
+        }
+
+        impl PartialEq<$x> for BigInt {
+            #[inline]
+            fn eq(&self, other: &$x) -> bool {
+                self == &BigInt::from(*other)
+            }
+        }
+    )*)
+}
+bigint_from_big!(i64 u64 i128 u128 isize usize);
+
+impl PartialEq<Number> for BigInt {
+    #[inline]
+    fn eq(&self, other: &Number) -> bool {
+        JsValue::as_ref(self).loose_eq(JsValue::as_ref(other))
+    }
+}
+
+impl Not for &BigInt {
+    type Output = BigInt;
+
+    #[inline]
+    fn not(self) -> Self::Output {
+        JsValue::as_ref(self).bit_not().unchecked_into()
+    }
+}
+
+forward_deref_unop!(impl Not, not for BigInt);
+forward_js_unop!(impl Neg, neg for BigInt);
+forward_js_binop!(impl BitAnd, bitand for BigInt);
+forward_js_binop!(impl BitOr, bitor for BigInt);
+forward_js_binop!(impl BitXor, bitxor for BigInt);
+forward_js_binop!(impl Shl, shl for BigInt);
+forward_js_binop!(impl Shr, shr for BigInt);
+forward_js_binop!(impl Add, add for BigInt);
+forward_js_binop!(impl Sub, sub for BigInt);
+forward_js_binop!(impl Div, div for BigInt);
+forward_js_binop!(impl Mul, mul for BigInt);
+forward_js_binop!(impl Rem, rem for BigInt);
+sum_product!(BigInt);
+
+partialord_ord!(BigInt);
+
+impl Default for BigInt {
+    fn default() -> Self {
+        BigInt::from(i32::default())
+    }
+}
+
+impl FromStr for BigInt {
+    type Err = Error;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        BigInt::new(&s.into())
+    }
+}
+
+impl fmt::Debug for BigInt {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl fmt::Display for BigInt {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad_integral(self >= &BigInt::from(0), "", &self.to_string_unchecked(10))
+    }
+}
+
+impl fmt::Binary for BigInt {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad_integral(self >= &BigInt::from(0), "0b", &self.to_string_unchecked(2))
+    }
+}
+
+impl fmt::Octal for BigInt {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad_integral(self >= &BigInt::from(0), "0o", &self.to_string_unchecked(8))
+    }
+}
+
+impl fmt::LowerHex for BigInt {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.pad_integral(
+            self >= &BigInt::from(0),
+            "0x",
+            &self.to_string_unchecked(16),
+        )
+    }
+}
+
+impl fmt::UpperHex for BigInt {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s: String = self.to_string_unchecked(16);
+        s.make_ascii_uppercase();
+        f.pad_integral(self >= &BigInt::from(0), "0x", &s)
+    }
+}
+
 // Boolean
 #[wasm_bindgen]
 extern "C" {
@@ -811,9 +1207,34 @@ impl PartialEq<bool> for Boolean {
 
 impl fmt::Debug for Boolean {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.value_of().fmt(f)
+        fmt::Debug::fmt(&self.value_of(), f)
     }
 }
+
+impl fmt::Display for Boolean {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value_of(), f)
+    }
+}
+
+impl Default for Boolean {
+    fn default() -> Self {
+        Self::from(bool::default())
+    }
+}
+
+impl Not for &Boolean {
+    type Output = Boolean;
+
+    #[inline]
+    fn not(self) -> Self::Output {
+        (!JsValue::as_ref(self)).into()
+    }
+}
+
+forward_deref_unop!(impl Not, not for Boolean);
+
+partialord_ord!(Boolean);
 
 // DataView
 #[wasm_bindgen]
@@ -1086,6 +1507,8 @@ extern "C" {
     pub fn to_string(this: &Error) -> JsString;
 }
 
+partialord_ord!(JsString);
+
 // EvalError
 #[wasm_bindgen]
 extern "C" {
@@ -1251,6 +1674,12 @@ impl Function {
     }
 }
 
+impl Default for Function {
+    fn default() -> Self {
+        Self::new_no_args("")
+    }
+}
+
 // Generator
 #[wasm_bindgen]
 extern "C" {
@@ -1346,6 +1775,12 @@ extern "C" {
     /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/size)
     #[wasm_bindgen(method, getter, structural)]
     pub fn size(this: &Map) -> u32;
+}
+
+impl Default for Map {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // Map Iterator
@@ -1815,7 +2250,7 @@ pub mod Math {
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(extends = Object, is_type_of = |v| v.as_f64().is_some(), typescript_type = "number")]
-    #[derive(Clone)]
+    #[derive(Clone, PartialEq)]
     pub type Number;
 
     /// The `Number.isFinite()` method determines whether the passed value is a finite number.
@@ -1853,6 +2288,9 @@ extern "C" {
     #[deprecated(note = "recommended to use `Number::from` instead")]
     #[allow(deprecated)]
     pub fn new(value: &JsValue) -> Number;
+
+    #[wasm_bindgen(constructor)]
+    fn new_from_str(value: &str) -> Number;
 
     /// The `Number.parseInt()` method parses a string argument and returns an
     /// integer of the specified radix or base.
@@ -1946,6 +2384,24 @@ impl Number {
     ///
     /// [MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/POSITIVE_INFINITY)
     pub const POSITIVE_INFINITY: f64 = f64::INFINITY;
+
+    /// Applies the binary `**` JS operator on the two `Number`s.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Exponentiation)
+    #[inline]
+    pub fn pow(&self, rhs: &Self) -> Self {
+        JsValue::as_ref(self)
+            .pow(JsValue::as_ref(rhs))
+            .unchecked_into()
+    }
+
+    /// Applies the binary `>>>` JS operator on the two `Number`s.
+    ///
+    /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unsigned_right_shift)
+    #[inline]
+    pub fn unsigned_shr(&self, rhs: &Self) -> Self {
+        Number::from(JsValue::as_ref(self).unsigned_shr(JsValue::as_ref(rhs)))
+    }
 }
 
 macro_rules! number_from {
@@ -1967,16 +2423,127 @@ macro_rules! number_from {
 }
 number_from!(i8 u8 i16 u16 i32 u32 f32 f64);
 
-impl From<Number> for f64 {
+// TODO: add this on the next major version, when blanket impl is removed
+/*
+impl convert::TryFrom<JsValue> for Number {
+    type Error = Error;
+
+    fn try_from(value: JsValue) -> Result<Self, Self::Error> {
+        return match f64::try_from(value) {
+            Ok(num) => Ok(Number::from(num)),
+            Err(jsval) => Err(jsval.unchecked_into())
+        }
+    }
+}
+*/
+
+impl From<&Number> for f64 {
     #[inline]
-    fn from(n: Number) -> f64 {
+    fn from(n: &Number) -> f64 {
         n.value_of()
     }
 }
 
+impl From<Number> for f64 {
+    #[inline]
+    fn from(n: Number) -> f64 {
+        n.into()
+    }
+}
+
 impl fmt::Debug for Number {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.value_of().fmt(f)
+        fmt::Debug::fmt(&self.value_of(), f)
+    }
+}
+
+impl fmt::Display for Number {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value_of(), f)
+    }
+}
+
+impl Default for Number {
+    fn default() -> Self {
+        Self::from(f64::default())
+    }
+}
+
+impl PartialEq<BigInt> for Number {
+    #[inline]
+    fn eq(&self, other: &BigInt) -> bool {
+        JsValue::as_ref(self).loose_eq(JsValue::as_ref(other))
+    }
+}
+
+impl Not for &Number {
+    type Output = BigInt;
+
+    #[inline]
+    fn not(self) -> Self::Output {
+        JsValue::as_ref(self).bit_not().unchecked_into()
+    }
+}
+
+forward_deref_unop!(impl Not, not for Number);
+forward_js_unop!(impl Neg, neg for Number);
+forward_js_binop!(impl BitAnd, bitand for Number);
+forward_js_binop!(impl BitOr, bitor for Number);
+forward_js_binop!(impl BitXor, bitxor for Number);
+forward_js_binop!(impl Shl, shl for Number);
+forward_js_binop!(impl Shr, shr for Number);
+forward_js_binop!(impl Add, add for Number);
+forward_js_binop!(impl Sub, sub for Number);
+forward_js_binop!(impl Div, div for Number);
+forward_js_binop!(impl Mul, mul for Number);
+forward_js_binop!(impl Rem, rem for Number);
+
+sum_product!(Number);
+
+impl PartialOrd for Number {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if Number::is_nan(self) || Number::is_nan(other) {
+            None
+        } else if self == other {
+            Some(Ordering::Equal)
+        } else if self.lt(other) {
+            Some(Ordering::Less)
+        } else {
+            Some(Ordering::Greater)
+        }
+    }
+
+    #[inline]
+    fn lt(&self, other: &Self) -> bool {
+        JsValue::as_ref(self).lt(JsValue::as_ref(other))
+    }
+
+    #[inline]
+    fn le(&self, other: &Self) -> bool {
+        JsValue::as_ref(self).le(JsValue::as_ref(other))
+    }
+
+    #[inline]
+    fn ge(&self, other: &Self) -> bool {
+        JsValue::as_ref(self).ge(JsValue::as_ref(other))
+    }
+
+    #[inline]
+    fn gt(&self, other: &Self) -> bool {
+        JsValue::as_ref(self).gt(JsValue::as_ref(other))
+    }
+}
+
+impl FromStr for Number {
+    type Err = Infallible;
+
+    #[allow(deprecated)]
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Number::new_from_str(s))
     }
 }
 
@@ -2690,6 +3257,12 @@ impl PartialEq for Object {
 
 impl Eq for Object {}
 
+impl Default for Object {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // Proxy
 #[wasm_bindgen]
 extern "C" {
@@ -3160,6 +3733,12 @@ extern "C" {
     pub fn size(this: &Set) -> u32;
 }
 
+impl Default for Set {
+    fn default() -> Self {
+        Self::new(&JsValue::UNDEFINED)
+    }
+}
+
 // SetIterator
 #[wasm_bindgen]
 extern "C" {
@@ -3292,6 +3871,12 @@ extern "C" {
     pub fn delete(this: &WeakMap, key: &Object) -> bool;
 }
 
+impl Default for WeakMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // WeakSet
 #[wasm_bindgen]
 extern "C" {
@@ -3324,6 +3909,12 @@ extern "C" {
     /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet/delete)
     #[wasm_bindgen(method)]
     pub fn delete(this: &WeakSet, value: &Object) -> bool;
+}
+
+impl Default for WeakSet {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[allow(non_snake_case)]
@@ -3559,6 +4150,34 @@ pub mod WebAssembly {
         /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Table/set)
         #[wasm_bindgen(method, catch, js_namespace = WebAssembly)]
         pub fn set(this: &Table, index: u32, function: &Function) -> Result<(), JsValue>;
+    }
+
+    // WebAssembly.Global
+    #[wasm_bindgen]
+    extern "C" {
+        /// The `WebAssembly.Global()` constructor creates a new `Global` object
+        /// of the given type and value.
+        ///
+        /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Global)
+        #[wasm_bindgen(js_namespace = WebAssembly, extends = Object, typescript_type = "WebAssembly.Global")]
+        #[derive(Clone, Debug, PartialEq, Eq)]
+        pub type Global;
+
+        /// The `WebAssembly.Global()` constructor creates a new `Global` object
+        /// of the given type and value.
+        ///
+        /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Global)
+        #[wasm_bindgen(constructor, js_namespace = WebAssembly, catch)]
+        pub fn new(global_descriptor: &Object, value: &JsValue) -> Result<Global, JsValue>;
+
+        /// The value prototype property of the `WebAssembly.Global` object
+        /// returns the value of the global.
+        ///
+        /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Global)
+        #[wasm_bindgen(method, getter, structural, js_namespace = WebAssembly)]
+        pub fn value(this: &Global) -> JsValue;
+        #[wasm_bindgen(method, setter = value, structural, js_namespace = WebAssembly)]
+        pub fn set_value(this: &Global, value: &JsValue);
     }
 
     // WebAssembly.Memory
@@ -4264,8 +4883,23 @@ impl From<JsString> for String {
 }
 
 impl fmt::Debug for JsString {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        String::from(self).fmt(f)
+        fmt::Debug::fmt(&String::from(self), f)
+    }
+}
+
+impl fmt::Display for JsString {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&String::from(self), f)
+    }
+}
+
+impl str::FromStr for JsString {
+    type Err = convert::Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(JsString::from(s))
     }
 }
 
@@ -4465,6 +5099,15 @@ pub mod Intl {
         pub fn supported_locales_of(locales: &Array, options: &Object) -> Array;
     }
 
+    impl Default for Collator {
+        fn default() -> Self {
+            Self::new(
+                &JsValue::UNDEFINED.unchecked_into(),
+                &JsValue::UNDEFINED.unchecked_into(),
+            )
+        }
+    }
+
     // Intl.DateTimeFormat
     #[wasm_bindgen]
     extern "C" {
@@ -4514,6 +5157,15 @@ pub mod Intl {
         /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat/supportedLocalesOf)
         #[wasm_bindgen(static_method_of = DateTimeFormat, js_namespace = Intl, js_name = supportedLocalesOf)]
         pub fn supported_locales_of(locales: &Array, options: &Object) -> Array;
+    }
+
+    impl Default for DateTimeFormat {
+        fn default() -> Self {
+            Self::new(
+                &JsValue::UNDEFINED.unchecked_into(),
+                &JsValue::UNDEFINED.unchecked_into(),
+            )
+        }
     }
 
     // Intl.NumberFormat
@@ -4566,6 +5218,15 @@ pub mod Intl {
         pub fn supported_locales_of(locales: &Array, options: &Object) -> Array;
     }
 
+    impl Default for NumberFormat {
+        fn default() -> Self {
+            Self::new(
+                &JsValue::UNDEFINED.unchecked_into(),
+                &JsValue::UNDEFINED.unchecked_into(),
+            )
+        }
+    }
+
     // Intl.PluralRules
     #[wasm_bindgen]
     extern "C" {
@@ -4606,6 +5267,15 @@ pub mod Intl {
         /// [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/PluralRules/supportedLocalesOf)
         #[wasm_bindgen(static_method_of = PluralRules, js_namespace = Intl, js_name = supportedLocalesOf)]
         pub fn supported_locales_of(locales: &Array, options: &Object) -> Array;
+    }
+
+    impl Default for PluralRules {
+        fn default() -> Self {
+            Self::new(
+                &JsValue::UNDEFINED.unchecked_into(),
+                &JsValue::UNDEFINED.unchecked_into(),
+            )
+        }
     }
 }
 
@@ -4963,11 +5633,23 @@ macro_rules! arrays {
                 )
             }
 
-            fn raw_copy_to(&self, dst: &mut [$ty]) {
+
+            /// Copy the contents of this JS typed array into the destination
+            /// Rust pointer.
+            ///
+            /// This function will efficiently copy the memory from a typed
+            /// array into this wasm module's own linear memory, initializing
+            /// the memory destination provided.
+            ///
+            /// # Unsafety
+            ///
+            /// This function requires `dst` to point to a buffer
+            /// large enough to fit this array's contents.
+            pub unsafe fn raw_copy_to_ptr(&self, dst: *mut $ty) {
                 let buf = wasm_bindgen::memory();
                 let mem = buf.unchecked_ref::<WebAssembly::Memory>();
                 let all_wasm_memory = $name::new(&mem.buffer());
-                let offset = dst.as_ptr() as usize / mem::size_of::<$ty>();
+                let offset = dst as usize / mem::size_of::<$ty>();
                 all_wasm_memory.set(self, offset as u32);
             }
 
@@ -4984,7 +5666,7 @@ macro_rules! arrays {
             /// different than the length of the provided `dst` array.
             pub fn copy_to(&self, dst: &mut [$ty]) {
                 assert_eq!(self.length() as usize, dst.len());
-                self.raw_copy_to(dst);
+                unsafe { self.raw_copy_to_ptr(dst.as_mut_ptr()); }
             }
 
             /// Copy the contents of the source Rust slice into this
@@ -5005,8 +5687,11 @@ macro_rules! arrays {
 
             /// Efficiently copies the contents of this JS typed array into a new Vec.
             pub fn to_vec(&self) -> Vec<$ty> {
-                let mut output = vec![$ty::default(); self.length() as usize];
-                self.raw_copy_to(&mut output);
+                let mut output = Vec::with_capacity(self.length() as usize);
+                unsafe {
+                    self.raw_copy_to_ptr(output.as_mut_ptr());
+                    output.set_len(self.length() as usize);
+                }
                 output
             }
         }
@@ -5016,6 +5701,12 @@ macro_rules! arrays {
             fn from(slice: &'a [$ty]) -> $name {
                 // This is safe because the `new` function makes a copy if its argument is a TypedArray
                 unsafe { $name::new(&$name::view(slice)) }
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new(&JsValue::UNDEFINED.unchecked_into())
             }
         }
     )*);
@@ -5057,4 +5748,12 @@ arrays! {
     /// `Float64Array()`
     /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array
     Float64Array: f64,
+
+    /// `BigInt64Array()`
+    /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt64Array
+    BigInt64Array: BigInt,
+
+    /// `BigUint64Array()`
+    /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigUint64Array
+    BigUint64Array: BigInt,
 }

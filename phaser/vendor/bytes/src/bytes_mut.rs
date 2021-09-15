@@ -380,6 +380,8 @@ impl BytesMut {
     /// If `len` is greater than the buffer's current length, this has no
     /// effect.
     ///
+    /// Existing underlying capacity is preserved.
+    ///
     /// The [`split_off`] method can emulate `truncate`, but this causes the
     /// excess bytes to be returned instead of dropped.
     ///
@@ -402,7 +404,7 @@ impl BytesMut {
         }
     }
 
-    /// Clears the buffer, removing all data.
+    /// Clears the buffer, removing all data. Existing capacity is preserved.
     ///
     /// # Examples
     ///
@@ -819,7 +821,7 @@ impl BytesMut {
     }
 
     fn try_unsplit(&mut self, other: BytesMut) -> Result<(), BytesMut> {
-        if other.is_empty() {
+        if other.capacity() == 0 {
             return Ok(());
         }
 
@@ -1009,6 +1011,19 @@ unsafe impl BufMut for BytesMut {
 
     fn put_slice(&mut self, src: &[u8]) {
         self.extend_from_slice(src);
+    }
+
+    fn put_bytes(&mut self, val: u8, cnt: usize) {
+        self.reserve(cnt);
+        unsafe {
+            let dst = self.uninit_slice();
+            // Reserved above
+            debug_assert!(dst.len() >= cnt);
+
+            ptr::write_bytes(dst.as_mut_ptr(), val, cnt);
+
+            self.advance_mut(cnt);
+        }
     }
 }
 
@@ -1250,6 +1265,7 @@ impl Shared {
     }
 }
 
+#[inline]
 fn original_capacity_to_repr(cap: usize) -> usize {
     let width = PTR_WIDTH - ((cap >> MIN_ORIGINAL_CAPACITY_WIDTH).leading_zeros() as usize);
     cmp::min(
@@ -1476,6 +1492,7 @@ impl PartialEq<Bytes> for BytesMut {
     }
 }
 
+#[inline]
 fn vptr(ptr: *mut u8) -> NonNull<u8> {
     if cfg!(debug_assertions) {
         NonNull::new(ptr).expect("Vec pointer should be non-null")

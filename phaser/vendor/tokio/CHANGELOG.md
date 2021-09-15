@@ -1,3 +1,85 @@
+# 1.11.0 (August 31, 2021)
+
+### Fixed
+
+ - time: don't panic when Instant is not monotonic ([#4044])
+ - io: fix panic in `fill_buf` by not calling `poll_fill_buf` twice ([#4084])
+
+### Added
+
+ - watch: add `watch::Sender::subscribe` ([#3800])
+ - process: add `from_std` to `ChildStd*` ([#4045])
+ - stats: initial work on runtime stats ([#4043])
+
+### Changed
+
+ - tracing: change span naming to new console convention ([#4042])
+ - io: speed-up waking by using uninitialized array ([#4055], [#4071], [#4075])
+
+### Documented
+
+ - time: make Sleep examples easier to find ([#4040])
+
+[#3800]: https://github.com/tokio-rs/tokio/pull/3800
+[#4040]: https://github.com/tokio-rs/tokio/pull/4040
+[#4042]: https://github.com/tokio-rs/tokio/pull/4042
+[#4043]: https://github.com/tokio-rs/tokio/pull/4043
+[#4044]: https://github.com/tokio-rs/tokio/pull/4044
+[#4045]: https://github.com/tokio-rs/tokio/pull/4045
+[#4055]: https://github.com/tokio-rs/tokio/pull/4055
+[#4071]: https://github.com/tokio-rs/tokio/pull/4071
+[#4075]: https://github.com/tokio-rs/tokio/pull/4075
+[#4084]: https://github.com/tokio-rs/tokio/pull/4084
+
+# 1.10.1 (August 24, 2021)
+
+### Fixed
+
+ - runtime: fix leak in UnownedTask ([#4063])
+
+[#4063]: https://github.com/tokio-rs/tokio/pull/4063
+
+# 1.10.0 (August 12, 2021)
+
+### Added
+
+ - io: add `(read|write)_f(32|64)[_le]` methods ([#4022])
+ - io: add `fill_buf` and `consume` to `AsyncBufReadExt` ([#3991])
+ - process: add `Child::raw_handle()` on windows ([#3998])
+
+### Fixed
+
+ - doc: fix non-doc builds with `--cfg docsrs` ([#4020])
+ - io: flush eagerly in `io::copy` ([#4001])
+ - runtime: a debug assert was sometimes triggered during shutdown ([#4005])
+ - sync: use `spin_loop_hint` instead of `yield_now` in mpsc ([#4037])
+ - tokio: the test-util feature depends on rt, sync, and time ([#4036])
+
+### Changes
+
+ - runtime: reorganize parts of the runtime ([#3979], [#4005])
+ - signal: make windows docs for signal module show up on unix builds ([#3770])
+ - task: quickly send task to heap on debug mode ([#4009])
+
+### Documented
+
+ - io: document cancellation safety of `AsyncBufReadExt` ([#3997])
+ - sync: document when `watch::send` fails ([#4021])
+
+[#3770]: https://github.com/tokio-rs/tokio/pull/3770
+[#3979]: https://github.com/tokio-rs/tokio/pull/3979
+[#3991]: https://github.com/tokio-rs/tokio/pull/3991
+[#3997]: https://github.com/tokio-rs/tokio/pull/3997
+[#3998]: https://github.com/tokio-rs/tokio/pull/3998
+[#4001]: https://github.com/tokio-rs/tokio/pull/4001
+[#4005]: https://github.com/tokio-rs/tokio/pull/4005
+[#4009]: https://github.com/tokio-rs/tokio/pull/4009
+[#4020]: https://github.com/tokio-rs/tokio/pull/4020
+[#4021]: https://github.com/tokio-rs/tokio/pull/4021
+[#4022]: https://github.com/tokio-rs/tokio/pull/4022
+[#4036]: https://github.com/tokio-rs/tokio/pull/4036
+[#4037]: https://github.com/tokio-rs/tokio/pull/4037
+
 # 1.9.0 (July 22, 2021)
 
 ### Added
@@ -28,9 +110,20 @@
 [#3955]: https://github.com/tokio-rs/tokio/pull/3955
 [#3959]: https://github.com/tokio-rs/tokio/pull/3959
 [#3967]: https://github.com/tokio-rs/tokio/pull/3967
-[#3967]: https://github.com/tokio-rs/tokio/pull/3967
 [#3978]: https://github.com/tokio-rs/tokio/pull/3978
 [#3980]: https://github.com/tokio-rs/tokio/pull/3980
+
+# 1.8.3 (July 26, 2021)
+
+This release backports two fixes from 1.9.0
+
+### Fixed
+
+ - Fix leak if output of future panics on drop ([#3967])
+ - Fix leak in `LocalSet` ([#3978])
+
+[#3967]: https://github.com/tokio-rs/tokio/pull/3967
+[#3978]: https://github.com/tokio-rs/tokio/pull/3978
 
 # 1.8.2 (July 19, 2021)
 

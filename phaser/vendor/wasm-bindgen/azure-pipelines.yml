@@ -11,6 +11,12 @@ jobs:
       - template: ci/azure-install-rust.yml
       - script: cargo fmt --all -- --check
 
+  - job: cargo_check
+    displayName: "Run cargo check"
+    steps:
+      - template: ci/azure-install-rust.yml
+      - script: cargo check --all
+
   - job: test_wasm_bindgen
     displayName: "Run wasm-bindgen crate tests (unix)"
     steps:
@@ -35,6 +41,8 @@ jobs:
         displayName: "Futures test suite on wasm"
       - script: cargo test -p wasm-bindgen-multi-value-xform
         displayName: "multi-value xform tests on native"
+      - script: cargo test -p wasm-bindgen-shared
+        displayName: "Shared test suite on native"
       # TODO: re-enable when binary decoding for reference types is updated in
       # Node.
       # - script: |
@@ -87,7 +95,7 @@ jobs:
     steps:
       - template: ci/azure-install-rust.yml
         parameters:
-          toolchain: nightly-2021-05-09
+          toolchain: nightly-2021-09-02
       - template: ci/azure-install-node.yml
       - script: cargo test --target wasm32-unknown-unknown --features nightly --test wasm
 
@@ -178,7 +186,7 @@ jobs:
       - script: mv _package.json package.json && npm install && rm package.json
         displayName: "run npm install"
       - script: |
-          for dir in `ls examples | grep -v README | grep -v asm.js | grep -v raytrace | grep -v without-a-bundler | grep -v websockets | grep -v webxr | grep -v deno`; do
+          for dir in `ls examples | grep -v README | grep -v asm.js | grep -v raytrace | grep -v without-a-bundler | grep -v wasm-in-web-worker | grep -v websockets | grep -v webxr | grep -v deno`; do
             (cd examples/$dir &&
             ln -fs ../../node_modules . &&
             npm run build -- --output-path $BUILD_ARTIFACTSTAGINGDIRECTORY/exbuild/$dir) || exit 1;
@@ -204,7 +212,7 @@ jobs:
     steps:
       - template: ci/azure-install-rust.yml
         parameters:
-          toolchain: nightly-2021-05-09
+          toolchain: nightly-2021-09-02
       - script: rustup component add rust-src
         displayName: "install rust-src"
       - script: |

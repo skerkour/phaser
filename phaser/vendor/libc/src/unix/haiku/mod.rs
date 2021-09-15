@@ -315,6 +315,24 @@ s! {
         pub named_sem_id: i32, // actually a union with unnamed_sem (i32)
         pub padding: [i32; 2],
     }
+
+    pub struct ucred {
+        pub pid: ::pid_t,
+        pub uid: ::uid_t,
+        pub gid: ::gid_t,
+    }
+
+    pub struct sockaddr_dl {
+        pub sdl_len: u8,
+        pub sdl_family: u8,
+        pub sdl_e_type: u16,
+        pub sdl_index: u32,
+        pub sdl_type: u8,
+        pub sdl_nlen: u8,
+        pub sdl_alen: u8,
+        pub sdl_slen: u8,
+        pub sdl_data: [u8; 46],
+    }
 }
 
 s_no_extra_traits! {
@@ -543,6 +561,7 @@ pub const RLIMIT_FSIZE: ::c_int = 3;
 pub const RLIMIT_NOFILE: ::c_int = 4;
 pub const RLIMIT_STACK: ::c_int = 5;
 pub const RLIMIT_AS: ::c_int = 6;
+pub const RLIM_INFINITY: ::c_ulong = 0xffffffff;
 // Haiku specific
 pub const RLIMIT_NOVMON: ::c_int = 7;
 pub const RLIM_NLIMITS: ::c_int = 8;
@@ -674,6 +693,7 @@ pub const MAP_SHARED: ::c_int = 0x01;
 pub const MAP_PRIVATE: ::c_int = 0x02;
 pub const MAP_FIXED: ::c_int = 0x04;
 pub const MAP_ANONYMOUS: ::c_int = 0x08;
+pub const MAP_NORESERVE: ::c_int = 0x10;
 pub const MAP_ANON: ::c_int = MAP_ANONYMOUS;
 
 pub const MAP_FAILED: *mut ::c_void = !0 as *mut ::c_void;
@@ -780,6 +800,7 @@ pub const MADV_SEQUENTIAL: ::c_int = 2;
 pub const MADV_RANDOM: ::c_int = 3;
 pub const MADV_WILLNEED: ::c_int = 4;
 pub const MADV_DONTNEED: ::c_int = 5;
+pub const MADV_FREE: ::c_int = 6;
 
 // https://github.com/haiku/haiku/blob/master/headers/posix/net/if.h#L80
 pub const IFF_UP: ::c_int = 0x0001;
@@ -808,6 +829,15 @@ pub const AF_NOTIFY: ::c_int = 8;
 pub const AF_LOCAL: ::c_int = 9;
 pub const AF_UNIX: ::c_int = AF_LOCAL;
 pub const AF_BLUETOOTH: ::c_int = 10;
+
+pub const PF_UNSPEC: ::c_int = AF_UNSPEC;
+pub const PF_INET: ::c_int = AF_INET;
+pub const PF_ROUTE: ::c_int = AF_ROUTE;
+pub const PF_LINK: ::c_int = AF_LINK;
+pub const PF_INET6: ::c_int = AF_INET6;
+pub const PF_LOCAL: ::c_int = AF_LOCAL;
+pub const PF_UNIX: ::c_int = AF_UNIX;
+pub const PF_BLUETOOTH: ::c_int = AF_BLUETOOTH;
 
 pub const IP_OPTIONS: ::c_int = 1;
 pub const IP_HDRINCL: ::c_int = 2;
@@ -979,6 +1009,7 @@ pub const _SC_HOST_NAME_MAX: ::c_int = 61;
 pub const _SC_REGEXP: ::c_int = 62;
 pub const _SC_SYMLOOP_MAX: ::c_int = 63;
 pub const _SC_SHELL: ::c_int = 64;
+pub const _SC_TTY_NAME_MAX: ::c_int = 65;
 
 pub const PTHREAD_STACK_MIN: ::size_t = 8192;
 
@@ -1295,7 +1326,7 @@ f! {
         return
     }
 
-    pub fn FD_ISSET(fd: ::c_int, set: *mut fd_set) -> bool {
+    pub fn FD_ISSET(fd: ::c_int, set: *const fd_set) -> bool {
         let fd = fd as usize;
         let size = ::mem::size_of_val(&(*set).fds_bits[0]) * 8;
         return ((*set).fds_bits[fd / size] & (1 << (fd % size))) != 0
@@ -1403,6 +1434,8 @@ extern "C" {
         attr: *mut pthread_condattr_t,
         clock_id: ::clockid_t,
     ) -> ::c_int;
+    pub fn valloc(numBytes: ::size_t) -> *mut ::c_void;
+    pub fn malloc_usable_size(ptr: *mut ::c_void) -> ::size_t;
     pub fn memalign(align: ::size_t, size: ::size_t) -> *mut ::c_void;
     pub fn setgroups(ngroups: ::c_int, ptr: *const ::gid_t) -> ::c_int;
     pub fn ioctl(fd: ::c_int, request: ::c_ulong, ...) -> ::c_int;
@@ -1433,6 +1466,8 @@ extern "C" {
     pub fn globfree(pglob: *mut ::glob_t);
     pub fn gettimeofday(tp: *mut ::timeval, tz: *mut ::c_void) -> ::c_int;
     pub fn posix_madvise(addr: *mut ::c_void, len: ::size_t, advice: ::c_int) -> ::c_int;
+    pub fn posix_fadvise(fd: ::c_int, offset: ::off_t, len: ::off_t, advice: ::c_int) -> ::c_int;
+    pub fn posix_fallocate(fd: ::c_int, offset: ::off_t, len: ::off_t) -> ::c_int;
 
     pub fn shm_open(name: *const ::c_char, oflag: ::c_int, mode: ::mode_t) -> ::c_int;
     pub fn shm_unlink(name: *const ::c_char) -> ::c_int;
@@ -1537,6 +1572,21 @@ cfg_if! {
     } else {
         mod b32;
         pub use self::b32::*;
+    }
+}
+
+cfg_if! {
+    if #[cfg(target_arch = "x86")] {
+        // TODO
+        // mod x86;
+        // pub use self::x86::*;
+    } else if #[cfg(target_arch = "x86_64")] {
+        mod x86_64;
+        pub use self::x86_64::*;
+    } else if #[cfg(target_arch = "aarch64")] {
+        // TODO
+        // mod aarch64;
+        // pub use self::aarch64::*;
     }
 }
 

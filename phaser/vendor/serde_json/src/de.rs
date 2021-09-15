@@ -196,6 +196,7 @@ impl<'de, R: Read<'de>> Deserializer<R> {
     /// }
     /// ```
     #[cfg(feature = "unbounded_depth")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unbounded_depth")))]
     pub fn disable_recursion_limit(&mut self) {
         self.disable_recursion_limit = true;
     }
@@ -433,8 +434,8 @@ impl<'de, R: Read<'de>> Deserializer<R> {
                 } else {
                     let neg = (significand as i64).wrapping_neg();
 
-                    // Convert into a float if we underflow.
-                    if neg > 0 {
+                    // Convert into a float if we underflow, or on `-0`.
+                    if neg >= 0 {
                         ParserNumber::F64(-(significand as f64))
                     } else {
                         ParserNumber::I64(neg)
@@ -898,7 +899,7 @@ impl<'de, R: Read<'de>> Deserializer<R> {
     fn scan_number(&mut self, buf: &mut String) -> Result<()> {
         match tri!(self.peek_or_null()) {
             b'.' => self.scan_decimal(buf),
-            b'e' | b'E' => self.scan_exponent(buf),
+            e @ b'e' | e @ b'E' => self.scan_exponent(e as char, buf),
             _ => Ok(()),
         }
     }
@@ -923,19 +924,20 @@ impl<'de, R: Read<'de>> Deserializer<R> {
         }
 
         match tri!(self.peek_or_null()) {
-            b'e' | b'E' => self.scan_exponent(buf),
+            e @ b'e' | e @ b'E' => self.scan_exponent(e as char, buf),
             _ => Ok(()),
         }
     }
 
     #[cfg(feature = "arbitrary_precision")]
-    fn scan_exponent(&mut self, buf: &mut String) -> Result<()> {
+    fn scan_exponent(&mut self, e: char, buf: &mut String) -> Result<()> {
         self.eat_char();
-        buf.push('e');
+        buf.push(e);
 
         match tri!(self.peek_or_null()) {
             b'+' => {
                 self.eat_char();
+                buf.push('+');
             }
             b'-' => {
                 self.eat_char();
@@ -2494,6 +2496,7 @@ where
 /// the JSON map or some number is too big to fit in the expected primitive
 /// type.
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 pub fn from_reader<R, T>(rdr: R) -> Result<T>
 where
     R: crate::io::Read,

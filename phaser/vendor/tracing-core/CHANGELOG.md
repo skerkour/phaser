@@ -1,4 +1,40 @@
-# 0.1.18 (April 30, 2010)
+# 0.1.20 (September 12, 2021)
+
+This release adds support for `f64` as one of the `tracing-core`
+primitive field values, allowing floating-point values to be recorded as
+typed values rather than with `fmt::Debug`. Additionally, it adds
+`NoSubscriber`, a `Subscriber` implementation that does nothing.
+
+### Added
+
+- **subscriber**: `NoSubscriber`, a no-op `Subscriber` implementation
+  ([#1549])
+- **field**: Added `Visit::record_f64` and support for recording
+  floating-point values ([#1507])
+
+Thanks to new contributors @jsgf and @maxburke for contributing to this
+release!
+
+[#1549]: https://github.com/tokio-rs/tracing/pull/1549 [#1507]:
+https://github.com/tokio-rs/tracing/pull/1507
+
+# 0.1.19 (August 17, 2021)
+### Added
+
+- `Level::as_str` ([#1413])
+- `Hash` implementation for `Level` and `LevelFilter` ([#1456])
+- `Value` implementation for `&mut T where T: Value` ([#1385])
+- Multiple documentation fixes and improvements ([#1435], [#1446])
+
+Thanks to @Folyd, @teozkr, and @dvdplm for contributing to this release!
+
+[#1413]: https://github.com/tokio-rs/tracing/pull/1413
+[#1456]: https://github.com/tokio-rs/tracing/pull/1456
+[#1385]: https://github.com/tokio-rs/tracing/pull/1385
+[#1435]: https://github.com/tokio-rs/tracing/pull/1435
+[#1446]: https://github.com/tokio-rs/tracing/pull/1446
+
+# 0.1.19 (April 30, 2021)
 
 ### Added
 

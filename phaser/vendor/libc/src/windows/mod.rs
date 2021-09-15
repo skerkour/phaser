@@ -319,6 +319,7 @@ extern "C" {
     pub fn perror(s: *const c_char);
     pub fn atoi(s: *const c_char) -> c_int;
     pub fn strtod(s: *const c_char, endp: *mut *mut c_char) -> c_double;
+    pub fn strtof(s: *const c_char, endp: *mut *mut c_char) -> c_float;
     pub fn strtol(s: *const c_char, endp: *mut *mut c_char, base: c_int) -> c_long;
     pub fn strtoul(s: *const c_char, endp: *mut *mut c_char, base: c_int) -> c_ulong;
     pub fn calloc(nobj: size_t, size: size_t) -> *mut c_void;
@@ -492,6 +493,8 @@ extern "C" {
     pub fn wsetlocale(category: ::c_int, locale: *const wchar_t) -> *mut wchar_t;
     #[link_name = "_aligned_malloc"]
     pub fn aligned_malloc(size: size_t, alignment: size_t) -> *mut c_void;
+    #[link_name = "_aligned_free"]
+    pub fn aligned_free(ptr: *mut ::c_void);
 }
 
 extern "system" {

@@ -26,6 +26,17 @@ s! {
         pub udata: *mut ::c_void,
         pub ext: [u64; 4],
     }
+
+    pub struct sockcred2 {
+        pub sc_version: ::c_int,
+        pub sc_pid: ::pid_t,
+        pub sc_uid: ::uid_t,
+        pub sc_euid: ::uid_t,
+        pub sc_gid: ::gid_t,
+        pub sc_egid: ::gid_t,
+        pub sc_ngroups: ::c_int,
+        pub sc_groups: [::gid_t; 1],
+    }
 }
 
 s_no_extra_traits! {
@@ -208,6 +219,26 @@ pub const EINTEGRITY: ::c_int = 97;
 pub const ELAST: ::c_int = 97;
 pub const GRND_INSECURE: ::c_uint = 0x4;
 
+pub const PROC_ASLR_CTL: ::c_int = 13;
+pub const PROC_ASLR_STATUS: ::c_int = 14;
+pub const PROC_PROTMAX_CTL: ::c_int = 15;
+pub const PROC_PROTMAX_STATUS: ::c_int = 16;
+pub const PROC_PROCCTL_MD_MIN: ::c_int = 0x10000000;
+
+pub const LOCAL_CREDS_PERSISTENT: ::c_int = 3;
+pub const SCM_CREDS2: ::c_int = 0x08;
+
+f! {
+    pub fn SOCKCRED2SIZE(ngrps: usize) -> usize {
+        let ngrps = if ngrps > 0 {
+            ngrps - 1
+        } else {
+            0
+        };
+        ::mem::size_of::<sockcred2>() + ::mem::size_of::<::gid_t>() * ngrps
+    }
+}
+
 extern "C" {
     pub fn aio_readv(aiocbp: *mut ::aiocb) -> ::c_int;
     pub fn aio_writev(aiocbp: *mut ::aiocb) -> ::c_int;
@@ -243,5 +274,12 @@ cfg_if! {
                  target_arch = "aarch64"))] {
         mod b64;
         pub use self::b64::*;
+    }
+}
+
+cfg_if! {
+    if #[cfg(target_arch = "x86_64")] {
+        mod x86_64;
+        pub use self::x86_64::*;
     }
 }

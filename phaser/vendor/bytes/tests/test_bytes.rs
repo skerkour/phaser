@@ -785,6 +785,31 @@ fn bytes_mut_unsplit_empty_self() {
 }
 
 #[test]
+fn bytes_mut_unsplit_other_keeps_capacity() {
+    let mut buf = BytesMut::with_capacity(64);
+    buf.extend_from_slice(b"aabb");
+
+    // non empty other created "from" buf
+    let mut other = buf.split_off(buf.len());
+    other.extend_from_slice(b"ccddee");
+    buf.unsplit(other);
+
+    assert_eq!(buf.capacity(), 64);
+}
+
+#[test]
+fn bytes_mut_unsplit_empty_other_keeps_capacity() {
+    let mut buf = BytesMut::with_capacity(64);
+    buf.extend_from_slice(b"aabbccddee");
+
+    // empty other created "from" buf
+    let other = buf.split_off(buf.len());
+    buf.unsplit(other);
+
+    assert_eq!(buf.capacity(), 64);
+}
+
+#[test]
 fn bytes_mut_unsplit_arc_different() {
     let mut buf = BytesMut::with_capacity(64);
     buf.extend_from_slice(b"aaaabbbbeeee");
@@ -960,4 +985,20 @@ fn bytes_with_capacity_but_empty() {
     // See https://github.com/tokio-rs/bytes/issues/340
     let vec = Vec::with_capacity(1);
     let _ = Bytes::from(vec);
+}
+
+#[test]
+fn bytes_put_bytes() {
+    let mut bytes = BytesMut::new();
+    bytes.put_u8(17);
+    bytes.put_bytes(19, 2);
+    assert_eq!([17, 19, 19], bytes.as_ref());
+}
+
+#[test]
+fn box_slice_empty() {
+    // See https://github.com/tokio-rs/bytes/issues/340
+    let empty: Box<[u8]> = Default::default();
+    let b = Bytes::from(empty);
+    assert!(b.is_empty());
 }

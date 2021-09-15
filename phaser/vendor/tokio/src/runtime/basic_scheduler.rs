@@ -2,6 +2,7 @@ use crate::future::poll_fn;
 use crate::loom::sync::atomic::AtomicBool;
 use crate::loom::sync::Mutex;
 use crate::park::{Park, Unpark};
+use crate::runtime::stats::{RuntimeStats, WorkerStatsBatcher};
 use crate::runtime::task::{self, JoinHandle, OwnedTasks, Schedule, Task};
 use crate::sync::notify::Notify;
 use crate::util::{waker_ref, Wake, WakerRef};
@@ -47,6 +48,9 @@ struct Inner<P: Park> {
 
     /// Thread park handle
     park: P,
+
+    /// Stats batcher
+    stats: WorkerStatsBatcher,
 }
 
 #[derive(Clone)]
@@ -87,6 +91,9 @@ struct Shared {
 
     /// Indicates whether the blocked on thread was woken.
     woken: AtomicBool,
+
+    /// Keeps track of various runtime stats.
+    stats: RuntimeStats,
 }
 
 /// Thread-local context.
@@ -123,6 +130,7 @@ impl<P: Park> BasicScheduler<P> {
                 owned: OwnedTasks::new(),
                 unpark: unpark as Box<dyn Unpark>,
                 woken: AtomicBool::new(false),
+                stats: RuntimeStats::new(1),
             }),
         };
 
@@ -133,6 +141,7 @@ impl<P: Park> BasicScheduler<P> {
             spawner: spawner.clone(),
             tick: 0,
             park,
+            stats: WorkerStatsBatcher::new(0),
         }));
 
         BasicScheduler {
@@ -186,7 +195,7 @@ impl<P: Park> BasicScheduler<P> {
 
         Some(InnerGuard {
             inner: Some(inner),
-            basic_scheduler: &self,
+            basic_scheduler: self,
         })
     }
 }
@@ -205,6 +214,7 @@ impl<P: Park> Inner<P> {
             'outer: loop {
                 if scheduler.spawner.was_woken() || !polled {
                     polled = true;
+                    scheduler.stats.incr_poll_count();
                     if let Ready(v) = crate::coop::budget(|| future.as_mut().poll(&mut cx)) {
                         return v;
                     }
@@ -238,7 +248,10 @@ impl<P: Park> Inner<P> {
                         Some(entry) => entry,
                         None => {
                             // Park until the thread is signaled
+                            scheduler.stats.about_to_park();
+                            scheduler.stats.submit(&scheduler.spawner.shared.stats);
                             scheduler.park.park().expect("failed to park");
+                            scheduler.stats.returned_from_park();
 
                             // Try polling the `block_on` future next
                             continue 'outer;
@@ -246,12 +259,17 @@ impl<P: Park> Inner<P> {
                     };
 
                     match entry {
-                        RemoteMsg::Schedule(task) => crate::coop::budget(|| task.run()),
+                        RemoteMsg::Schedule(task) => {
+                            scheduler.stats.incr_poll_count();
+                            let task = context.shared.owned.assert_owner(task);
+                            crate::coop::budget(|| task.run())
+                        }
                     }
                 }
 
                 // Yield to the park, this drives the timer and pulls any pending
                 // I/O events.
+                scheduler.stats.submit(&scheduler.spawner.shared.stats);
                 scheduler
                     .park
                     .park_timeout(Duration::from_millis(0))
@@ -311,37 +329,31 @@ impl<P: Park> Drop for BasicScheduler<P> {
         };
 
         enter(&mut inner, |scheduler, context| {
-            // By closing the OwnedTasks, no new tasks can be spawned on it.
-            context.shared.owned.close();
-            // Drain the OwnedTasks collection.
-            while let Some(task) = context.shared.owned.pop_back() {
-                task.shutdown();
-            }
+            // Drain the OwnedTasks collection. This call also closes the
+            // collection, ensuring that no tasks are ever pushed after this
+            // call returns.
+            context.shared.owned.close_and_shutdown_all();
 
             // Drain local queue
+            // We already shut down every task, so we just need to drop the task.
             for task in context.tasks.borrow_mut().queue.drain(..) {
-                task.shutdown();
+                drop(task);
             }
 
             // Drain remote queue and set it to None
-            let mut remote_queue = scheduler.spawner.shared.queue.lock();
+            let remote_queue = scheduler.spawner.shared.queue.lock().take();
 
             // Using `Option::take` to replace the shared queue with `None`.
-            if let Some(remote_queue) = remote_queue.take() {
+            // We already shut down every task, so we just need to drop the task.
+            if let Some(remote_queue) = remote_queue {
                 for entry in remote_queue {
                     match entry {
                         RemoteMsg::Schedule(task) => {
-                            task.shutdown();
+                            drop(task);
                         }
                     }
                 }
             }
-            // By dropping the mutex lock after the full duration of the above loop,
-            // any thread that sees the queue in the `None` state is guaranteed that
-            // the runtime has fully shut down.
-            //
-            // The assert below is unrelated to this mutex.
-            drop(remote_queue);
 
             assert!(context.shared.owned.is_empty());
         });
@@ -372,6 +384,10 @@ impl Spawner {
         handle
     }
 
+    pub(crate) fn stats(&self) -> &RuntimeStats {
+        &self.shared.stats
+    }
+
     fn pop(&self) -> Option<RemoteMsg> {
         match self.shared.queue.lock().as_mut() {
             Some(queue) => queue.pop_front(),
@@ -400,8 +416,7 @@ impl fmt::Debug for Spawner {
 
 impl Schedule for Arc<Shared> {
     fn release(&self, task: &Task<Self>) -> Option<Task<Self>> {
-        // SAFETY: Inserted into the list in bind above.
-        unsafe { self.owned.remove(task) }
+        self.owned.remove(task)
     }
 
     fn schedule(&self, task: task::Notified<Self>) {

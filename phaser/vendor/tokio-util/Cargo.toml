@@ -13,11 +13,11 @@
 [package]
 edition = "2018"
 name = "tokio-util"
-version = "0.6.7"
+version = "0.6.8"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = "Additional utilities for working with Tokio.\n"
 homepage = "https://tokio.rs"
-documentation = "https://docs.rs/tokio-util/0.6.7/tokio_util"
+documentation = "https://docs.rs/tokio-util/0.6.8/tokio_util"
 categories = ["asynchronous"]
 license = "MIT"
 repository = "https://github.com/tokio-rs/tokio"

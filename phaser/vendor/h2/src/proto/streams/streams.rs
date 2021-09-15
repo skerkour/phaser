@@ -207,12 +207,15 @@ where
 
     pub fn send_request(
         &mut self,
-        request: Request<()>,
+        mut request: Request<()>,
         end_of_stream: bool,
         pending: Option<&OpaqueStreamRef>,
     ) -> Result<StreamRef<B>, SendError> {
         use super::stream::ContentLength;
         use http::Method;
+
+        // Clear before taking lock, incase extensions contain a StreamRef.
+        request.extensions_mut().clear();
 
         // TODO: There is a hazard with assigning a stream ID before the
         // prioritize layer. If prioritization reorders new streams, this
@@ -990,7 +993,14 @@ where
     P: Peer,
 {
     fn drop(&mut self) {
-        let _ = self.inner.lock().map(|mut inner| inner.refs -= 1);
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.refs -= 1;
+            if inner.refs == 1 {
+                if let Some(task) = inner.actions.task.take() {
+                    task.wake();
+                }
+            }
+        }
     }
 }
 
@@ -1055,9 +1065,11 @@ impl<B> StreamRef<B> {
 
     pub fn send_response(
         &mut self,
-        response: Response<()>,
+        mut response: Response<()>,
         end_of_stream: bool,
     ) -> Result<(), UserError> {
+        // Clear before taking lock, incase extensions contain a StreamRef.
+        response.extensions_mut().clear();
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
@@ -1075,7 +1087,12 @@ impl<B> StreamRef<B> {
         })
     }
 
-    pub fn send_push_promise(&mut self, request: Request<()>) -> Result<StreamRef<B>, UserError> {
+    pub fn send_push_promise(
+        &mut self,
+        mut request: Request<()>,
+    ) -> Result<StreamRef<B>, UserError> {
+        // Clear before taking lock, incase extensions contain a StreamRef.
+        request.extensions_mut().clear();
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 

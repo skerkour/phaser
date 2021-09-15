@@ -112,6 +112,12 @@ fn create_shutdown2() {
 }
 
 #[test]
+fn unowned_poll() {
+    let (task, _) = unowned(async {}, NoopSchedule);
+    task.run();
+}
+
+#[test]
 fn schedule() {
     with(|rt| {
         rt.spawn(async {
@@ -241,6 +247,7 @@ impl Runtime {
         while !self.is_empty() && n < max {
             let task = self.next_task();
             n += 1;
+            let task = self.0.owned.assert_owner(task);
             task.run();
         }
 
@@ -258,13 +265,10 @@ impl Runtime {
     fn shutdown(&self) {
         let mut core = self.0.core.try_lock().unwrap();
 
-        self.0.owned.close();
-        while let Some(task) = self.0.owned.pop_back() {
-            task.shutdown();
-        }
+        self.0.owned.close_and_shutdown_all();
 
         while let Some(task) = core.queue.pop_back() {
-            task.shutdown();
+            drop(task);
         }
 
         drop(core);
@@ -275,8 +279,7 @@ impl Runtime {
 
 impl Schedule for Runtime {
     fn release(&self, task: &Task<Self>) -> Option<Task<Self>> {
-        // safety: copying worker.rs
-        unsafe { self.0.owned.remove(task) }
+        self.0.owned.remove(task)
     }
 
     fn schedule(&self, task: task::Notified<Self>) {

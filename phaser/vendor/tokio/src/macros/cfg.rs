@@ -162,6 +162,25 @@ macro_rules! cfg_macros {
     }
 }
 
+macro_rules! cfg_stats {
+    ($($item:item)*) => {
+        $(
+            #[cfg(all(tokio_unstable, feature = "stats"))]
+            #[cfg_attr(docsrs, doc(cfg(feature = "stats")))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_not_stats {
+    ($($item:item)*) => {
+        $(
+            #[cfg(not(all(tokio_unstable, feature = "stats")))]
+            $item
+        )*
+    }
+}
+
 macro_rules! cfg_net {
     ($($item:item)*) => {
         $(
@@ -176,7 +195,7 @@ macro_rules! cfg_net_unix {
     ($($item:item)*) => {
         $(
             #[cfg(all(unix, feature = "net"))]
-            #[cfg_attr(docsrs, doc(cfg(feature = "net")))]
+            #[cfg_attr(docsrs, doc(cfg(all(unix, feature = "net"))))]
             $item
         )*
     }
@@ -185,7 +204,7 @@ macro_rules! cfg_net_unix {
 macro_rules! cfg_net_windows {
     ($($item:item)*) => {
         $(
-            #[cfg(all(any(docsrs, windows), feature = "net"))]
+            #[cfg(all(any(all(doc, docsrs), windows), feature = "net"))]
             #[cfg_attr(docsrs, doc(cfg(all(windows, feature = "net"))))]
             $item
         )*
@@ -380,6 +399,32 @@ macro_rules! cfg_not_coop {
                     feature = "sync",
                     feature = "time",
                     )))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_has_atomic_u64 {
+    ($($item:item)*) => {
+        $(
+            #[cfg(not(any(
+                    target_arch = "arm",
+                    target_arch = "mips",
+                    target_arch = "powerpc"
+                    )))]
+            $item
+        )*
+    }
+}
+
+macro_rules! cfg_not_has_atomic_u64 {
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(
+                    target_arch = "arm",
+                    target_arch = "mips",
+                    target_arch = "powerpc"
+                    ))]
             $item
         )*
     }

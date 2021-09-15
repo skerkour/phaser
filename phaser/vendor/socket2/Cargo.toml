@@ -3,17 +3,16 @@
 # When uploading crates to the registry Cargo will automatically
 # "normalize" Cargo.toml files for maximal compatibility
 # with all versions of Cargo and also rewrite `path` dependencies
-# to registry (e.g., crates.io) dependencies
+# to registry (e.g., crates.io) dependencies.
 #
-# If you believe there's an error in this file please file an
-# issue against the rust-lang/cargo repository. If you're
-# editing this file be aware that the upstream Cargo.toml
-# will likely look very different (and much more reasonable)
+# If you are reading this file be aware that the original Cargo.toml
+# will likely look very different (and much more reasonable).
+# See Cargo.toml.orig for the original contents.
 
 [package]
 edition = "2018"
 name = "socket2"
-version = "0.4.0"
+version = "0.4.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>", "Thomas de Zeeuw <thomasdezeeuw@gmail.com>"]
 include = ["Cargo.toml", "LICENSE-APACHE", "LICENSE-MIT", "README.md", "src/**/*.rs"]
 description = "Utilities for handling networking sockets with a maximal amount of configuration\npossible intended.\n"
@@ -34,7 +33,7 @@ features = ["all"]
 [features]
 all = []
 [target."cfg(unix)".dependencies.libc]
-version = "0.2.86"
+version = "0.2.96"
 [target."cfg(windows)".dependencies.winapi]
 version = "0.3.9"
 features = ["handleapi", "ws2ipdef", "ws2tcpip"]

@@ -107,9 +107,6 @@
 //!
 //! // `my_subscriber` is now the default
 //! ```
-//! <div class="information">
-//!     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-//! </div>
 //! <div class="example-wrap" style="display:inline-block">
 //! <pre class="ignore" style="white-space:normal;font:inherit;">
 //! <strong>Note</strong>: The thread-local scoped dispatcher (<code>with_default</code>)
@@ -125,7 +122,7 @@
 //! currently default `Dispatch`. This is used primarily by `tracing`
 //! instrumentation.
 //!
-//! [`Subscriber`]: struct.Subscriber.html
+//! [`Subscriber`]: trait.Subscriber.html
 //! [`with_default`]: fn.with_default.html
 //! [`set_global_default`]: fn.set_global_default.html
 //! [`get_default`]: fn.get_default.html

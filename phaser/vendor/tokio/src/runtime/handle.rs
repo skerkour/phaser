@@ -111,6 +111,14 @@ impl Handle {
         context::current().ok_or(TryCurrentError(()))
     }
 
+    cfg_stats! {
+        /// Returns a view that lets you get information about how the runtime
+        /// is performing.
+        pub fn stats(&self) -> &crate::runtime::stats::RuntimeStats {
+            self.spawner.stats()
+        }
+    }
+
     /// Spawn a future onto the Tokio runtime.
     ///
     /// This spawns the given future onto the runtime's executor, usually a
@@ -192,20 +200,20 @@ impl Handle {
             let location = std::panic::Location::caller();
             #[cfg(tokio_track_caller)]
             let span = tracing::trace_span!(
-                target: "tokio::task",
-                "task",
+                target: "tokio::task::blocking",
+                "runtime.spawn",
                 kind = %"blocking",
-                function = %std::any::type_name::<F>(),
                 task.name = %name.unwrap_or_default(),
+                "fn" = %std::any::type_name::<F>(),
                 spawn.location = %format_args!("{}:{}:{}", location.file(), location.line(), location.column()),
             );
             #[cfg(not(tokio_track_caller))]
             let span = tracing::trace_span!(
-                target: "tokio::task",
-                "task",
+                target: "tokio::task::blocking",
+                "runtime.spawn",
                 kind = %"blocking",
                 task.name = %name.unwrap_or_default(),
-                function = %std::any::type_name::<F>(),
+                "fn" = %std::any::type_name::<F>(),
             );
             fut.instrument(span)
         };
@@ -214,7 +222,7 @@ impl Handle {
         let _ = name;
 
         let (task, handle) = task::unowned(fut, NoopSchedule);
-        let _ = self.blocking_spawner.spawn(task, &self);
+        let _ = self.blocking_spawner.spawn(task, self);
         handle
     }
 

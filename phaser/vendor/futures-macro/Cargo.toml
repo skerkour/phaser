@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "futures-macro"
-version = "0.3.16"
+version = "0.3.17"
 authors = ["Taylor Cramer <cramertj@google.com>", "Taiki Endo <te316e89@gmail.com>"]
 description = "The futures-rs procedural macro implementations.\n"
 homepage = "https://rust-lang.github.io/futures-rs"

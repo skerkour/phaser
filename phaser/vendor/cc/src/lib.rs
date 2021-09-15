@@ -103,6 +103,7 @@ pub struct Build {
     cpp_link_stdlib: Option<Option<String>>,
     cpp_set_stdlib: Option<String>,
     cuda: bool,
+    cudart: Option<String>,
     target: Option<String>,
     host: Option<String>,
     out_dir: Option<PathBuf>,
@@ -298,6 +299,7 @@ impl Build {
             cpp_link_stdlib: None,
             cpp_set_stdlib: None,
             cuda: false,
+            cudart: None,
             target: None,
             host: None,
             out_dir: None,
@@ -611,6 +613,20 @@ impl Build {
         self.cuda = cuda;
         if cuda {
             self.cpp = true;
+            self.cudart = Some("static".to_string());
+        }
+        self
+    }
+
+    /// Link CUDA run-time.
+    ///
+    /// This option mimics the `--cudart` NVCC command-line option. Just like
+    /// the original it accepts `{none|shared|static}`, with default being
+    /// `static`. The method has to be invoked after `.cuda(true)`, or not
+    /// at all, if the default is right for the project.
+    pub fn cudart(&mut self, cudart: &str) -> &mut Build {
+        if self.cuda {
+            self.cudart = Some(cudart.to_string());
         }
         self
     }
@@ -996,6 +1012,56 @@ impl Build {
             }
         }
 
+        let cudart = match &self.cudart {
+            Some(opt) => opt.as_str(), // {none|shared|static}
+            None => "none",
+        };
+        if cudart != "none" {
+            if let Some(nvcc) = which(&self.get_compiler().path) {
+                // Try to figure out the -L search path. If it fails,
+                // it's on user to specify one by passing it through
+                // RUSTFLAGS environment variable.
+                let mut libtst = false;
+                let mut libdir = nvcc;
+                libdir.pop(); // remove 'nvcc'
+                libdir.push("..");
+                let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+                if cfg!(target_os = "linux") {
+                    libdir.push("targets");
+                    libdir.push(target_arch.to_owned() + "-linux");
+                    libdir.push("lib");
+                    libtst = true;
+                } else if cfg!(target_env = "msvc") {
+                    libdir.push("lib");
+                    match target_arch.as_str() {
+                        "x86_64" => {
+                            libdir.push("x64");
+                            libtst = true;
+                        }
+                        "x86" => {
+                            libdir.push("Win32");
+                            libtst = true;
+                        }
+                        _ => libtst = false,
+                    }
+                }
+                if libtst && libdir.is_dir() {
+                    println!(
+                        "cargo:rustc-link-search=native={}",
+                        libdir.to_str().unwrap()
+                    );
+                }
+
+                // And now the -l flag.
+                let lib = match cudart {
+                    "shared" => "cudart",
+                    "static" => "cudart_static",
+                    bad => panic!("unsupported cudart option: {}", bad),
+                };
+                println!("cargo:rustc-link-lib={}", lib);
+            }
+        }
+
         Ok(())
     }
 
@@ -1204,6 +1270,9 @@ impl Build {
         // armasm and armasm64 don't requrie -c option
         if !msvc || !is_asm || !is_arm {
             cmd.arg("-c");
+        }
+        if self.cuda && self.files.len() > 1 {
+            cmd.arg("--device-c");
         }
         cmd.arg(&obj.src);
         if cfg!(target_os = "macos") {
@@ -1466,9 +1535,8 @@ impl Build {
                         if let Some(arch) =
                             map_darwin_target_from_rust_to_compiler_architecture(target)
                         {
-                            let ios = if arch == "arm64" { "ios" } else { "ios13.0" };
                             cmd.args
-                                .push(format!("--target={}-apple-{}-macabi", arch, ios).into());
+                                .push(format!("--target={}-apple-ios13.0-macabi", arch).into());
                         }
                     } else if target.contains("ios-sim") {
                         if let Some(arch) =
@@ -1811,6 +1879,21 @@ impl Build {
             self.assemble_progressive(dst, chunk)?;
         }
 
+        if self.cuda {
+            // Link the device-side code and add it to the target library,
+            // so that non-CUDA linker can link the final binary.
+
+            let out_dir = self.get_out_dir()?;
+            let dlink = out_dir.join(lib_name.to_owned() + "_dlink.o");
+            let mut nvcc = self.get_compiler().to_command();
+            nvcc.arg("--device-link")
+                .arg("-o")
+                .arg(dlink.clone())
+                .arg(dst);
+            run(&mut nvcc, "nvcc")?;
+            self.assemble_progressive(dst, &[dlink])?;
+        }
+
         let target = self.get_target()?;
         if target.contains("msvc") {
             // The Rust compiler will look for libfoo.a and foo.lib, but the
@@ -1915,6 +1998,11 @@ impl Build {
             None => false,
         };
 
+        let is_sim = match target.split('-').nth(3) {
+            Some(v) => v == "sim",
+            None => false,
+        };
+
         let arch = if is_catalyst {
             match arch {
                 "arm64e" => ArchSpec::Catalyst("arm64e"),
@@ -1924,6 +2012,16 @@ impl Build {
                     return Err(Error::new(
                         ErrorKind::ArchitectureInvalid,
                         "Unknown architecture for iOS target.",
+                    ));
+                }
+            }
+        } else if is_sim {
+            match arch {
+                "arm64" | "aarch64" => ArchSpec::Simulator("-arch arm64"),
+                _ => {
+                    return Err(Error::new(
+                        ErrorKind::ArchitectureInvalid,
+                        "Unknown architecture for iOS simulator target.",
                     ));
                 }
             }
@@ -2210,13 +2308,13 @@ impl Build {
         // No explicit CC wrapper was detected, but check if RUSTC_WRAPPER
         // is defined and is a build accelerator that is compatible with
         // C/C++ compilers (e.g. sccache)
-        let valid_wrappers = ["sccache"];
+        const VALID_WRAPPERS: &[&'static str] = &["sccache", "cachepot"];
 
         let rustc_wrapper = std::env::var_os("RUSTC_WRAPPER")?;
         let wrapper_path = Path::new(&rustc_wrapper);
         let wrapper_stem = wrapper_path.file_stem()?;
 
-        if valid_wrappers.contains(&wrapper_stem.to_str()?) {
+        if VALID_WRAPPERS.contains(&wrapper_stem.to_str()?) {
             Some(rustc_wrapper.to_str()?.to_owned())
         } else {
             None
@@ -2957,9 +3055,12 @@ fn spawn(cmd: &mut Command, program: &str) -> Result<(Child, JoinHandle<()>), Er
                 &format!("Failed to find tool. Is `{}` installed?{}", program, extra),
             ))
         }
-        Err(_) => Err(Error::new(
+        Err(ref e) => Err(Error::new(
             ErrorKind::ToolExecError,
-            &format!("Command {:?} with args {:?} failed to start.", cmd, program),
+            &format!(
+                "Command {:?} with args {:?} failed to start: {:?}",
+                cmd, program, e
+            ),
         )),
     }
 }
@@ -3099,4 +3200,24 @@ fn map_darwin_target_from_rust_to_compiler_architecture(target: &str) -> Option<
     } else {
         None
     }
+}
+
+fn which(tool: &Path) -> Option<PathBuf> {
+    fn check_exe(exe: &mut PathBuf) -> bool {
+        let exe_ext = std::env::consts::EXE_EXTENSION;
+        exe.exists() || (!exe_ext.is_empty() && exe.set_extension(exe_ext) && exe.exists())
+    }
+
+    // If |tool| is not just one "word," assume it's an actual path...
+    if tool.components().count() > 1 {
+        let mut exe = PathBuf::from(tool);
+        return if check_exe(&mut exe) { Some(exe) } else { None };
+    }
+
+    // Loop through PATH entries searching for the |tool|.
+    let path_entries = env::var_os("PATH")?;
+    env::split_paths(&path_entries).find_map(|path_entry| {
+        let mut exe = path_entry.join(tool);
+        return if check_exe(&mut exe) { Some(exe) } else { None };
+    })
 }

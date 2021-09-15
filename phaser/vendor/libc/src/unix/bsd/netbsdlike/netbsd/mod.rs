@@ -468,6 +468,29 @@ s! {
     pub struct sched_param {
         pub sched_priority: ::c_int,
     }
+
+    pub struct kinfo_vmentry {
+        pub kve_start: u64,
+        pub kve_end: u64,
+        pub kve_offset: u64,
+        pub kve_type: u32,
+        pub kve_flags: u32,
+        pub kve_count: u32,
+        pub kve_wired_count: u32,
+        pub kve_advice: u32,
+        pub kve_attributes: u32,
+        pub kve_protection: u32,
+        pub kve_max_protection: u32,
+        pub kve_ref_count: u32,
+        pub kve_inheritance: u32,
+        pub kve_vn_fileid: u64,
+        pub kve_vn_size: u64,
+        pub kve_vn_fsid: u64,
+        pub kve_vn_rdev: u64,
+        pub kve_vn_type: u32,
+        pub kve_vn_mode: u32,
+        pub kve_path: [[::c_char; 32]; 32],
+    }
 }
 
 s_no_extra_traits! {
@@ -1016,6 +1039,36 @@ pub const AT_SYMLINK_NOFOLLOW: ::c_int = 0x200;
 pub const AT_SYMLINK_FOLLOW: ::c_int = 0x400;
 pub const AT_REMOVEDIR: ::c_int = 0x800;
 
+pub const AT_NULL: ::c_int = 0;
+pub const AT_IGNORE: ::c_int = 1;
+pub const AT_EXECFD: ::c_int = 2;
+pub const AT_PHDR: ::c_int = 3;
+pub const AT_PHENT: ::c_int = 4;
+pub const AT_PHNUM: ::c_int = 5;
+pub const AT_PAGESZ: ::c_int = 6;
+pub const AT_BASE: ::c_int = 7;
+pub const AT_FLAGS: ::c_int = 8;
+pub const AT_ENTRY: ::c_int = 9;
+pub const AT_DCACHEBSIZE: ::c_int = 10;
+pub const AT_ICACHEBSIZE: ::c_int = 11;
+pub const AT_UCACHEBSIZE: ::c_int = 12;
+pub const AT_STACKBASE: ::c_int = 13;
+pub const AT_EUID: ::c_int = 2000;
+pub const AT_RUID: ::c_int = 2001;
+pub const AT_EGID: ::c_int = 2002;
+pub const AT_RGID: ::c_int = 2003;
+pub const AT_SUN_LDELF: ::c_int = 2004;
+pub const AT_SUN_LDSHDR: ::c_int = 2005;
+pub const AT_SUN_LDNAME: ::c_int = 2006;
+pub const AT_SUN_LDPGSIZE: ::c_int = 2007;
+pub const AT_SUN_PLATFORM: ::c_int = 2008;
+pub const AT_SUN_HWCAP: ::c_int = 2009;
+pub const AT_SUN_IFLUSH: ::c_int = 2010;
+pub const AT_SUN_CPU: ::c_int = 2011;
+pub const AT_SUN_EMUL_ENTRY: ::c_int = 2012;
+pub const AT_SUN_EMUL_EXECFD: ::c_int = 2013;
+pub const AT_SUN_EXECNAME: ::c_int = 2014;
+
 pub const EXTATTR_NAMESPACE_USER: ::c_int = 1;
 pub const EXTATTR_NAMESPACE_SYSTEM: ::c_int = 2;
 
@@ -1243,6 +1296,7 @@ pub const MAP_RENAME: ::c_int = 0x20;
 pub const MAP_NORESERVE: ::c_int = 0x40;
 pub const MAP_HASSEMAPHORE: ::c_int = 0x200;
 pub const MAP_WIRED: ::c_int = 0x800;
+pub const MAP_STACK: ::c_int = 0x2000;
 // mremap flag
 pub const MAP_REMAPDUP: ::c_int = 0x004;
 
@@ -1453,6 +1507,9 @@ pub const TIME_OOP: ::c_int = 3;
 pub const TIME_WAIT: ::c_int = 4;
 pub const TIME_ERROR: ::c_int = 5;
 
+pub const LITTLE_ENDIAN: ::c_int = 1234;
+pub const BIG_ENDIAN: ::c_int = 4321;
+
 cfg_if! {
     if #[cfg(any(target_arch = "sparc", target_arch = "sparc64",
                  target_arch = "x86", target_arch = "x86_64"))] {
@@ -1505,6 +1562,11 @@ pub const PTHREAD_MUTEX_NORMAL: ::c_int = 0;
 pub const PTHREAD_MUTEX_ERRORCHECK: ::c_int = 1;
 pub const PTHREAD_MUTEX_RECURSIVE: ::c_int = 2;
 pub const PTHREAD_MUTEX_DEFAULT: ::c_int = PTHREAD_MUTEX_NORMAL;
+
+pub const SCHED_NONE: ::c_int = -1;
+pub const SCHED_OTHER: ::c_int = 0;
+pub const SCHED_FIFO: ::c_int = 1;
+pub const SCHED_RR: ::c_int = 2;
 
 pub const EVFILT_AIO: u32 = 2;
 pub const EVFILT_PROC: u32 = 4;
@@ -1709,6 +1771,8 @@ pub const KERN_PROC_NARGV: ::c_int = 2;
 pub const KERN_PROC_ENV: ::c_int = 3;
 pub const KERN_PROC_NENV: ::c_int = 4;
 pub const KERN_PROC_PATHNAME: ::c_int = 5;
+pub const VM_PROC: ::c_int = 16;
+pub const VM_PROC_MAP: ::c_int = 1;
 
 pub const EAI_AGAIN: ::c_int = 2;
 pub const EAI_BADFLAGS: ::c_int = 3;
@@ -1809,6 +1873,18 @@ pub const PT_FIRSTMACH: ::c_int = 32;
 pub const SF_SNAPSHOT: ::c_ulong = 0x00200000;
 pub const SF_LOG: ::c_ulong = 0x00400000;
 pub const SF_SNAPINVAL: ::c_ulong = 0x00800000;
+
+// sys/sysctl.h
+pub const KVME_PROT_READ: ::c_int = 0x00000001;
+pub const KVME_PROT_WRITE: ::c_int = 0x00000002;
+pub const KVME_PROT_EXEC: ::c_int = 0x00000004;
+
+pub const KVME_FLAG_COW: ::c_int = 0x00000001;
+pub const KVME_FLAG_NEEDS_COPY: ::c_int = 0x00000002;
+pub const KVME_FLAG_NOCOREDUMP: ::c_int = 0x000000004;
+pub const KVME_FLAG_PAGEABLE: ::c_int = 0x000000008;
+pub const KVME_FLAG_GROWS_UP: ::c_int = 0x000000010;
+pub const KVME_FLAG_GROWS_DOWN: ::c_int = 0x000000020;
 
 const_fn! {
     {const} fn _ALIGN(p: usize) -> usize {
@@ -2194,6 +2270,12 @@ extern "C" {
 
     pub fn sched_setparam(pid: ::pid_t, param: *const sched_param) -> ::c_int;
     pub fn sched_getparam(pid: ::pid_t, param: *mut sched_param) -> ::c_int;
+    pub fn sched_getscheduler(pid: ::pid_t) -> ::c_int;
+    pub fn sched_setscheduler(
+        pid: ::pid_t,
+        policy: ::c_int,
+        param: *const ::sched_param,
+    ) -> ::c_int;
 }
 
 #[link(name = "util")]
@@ -2258,6 +2340,55 @@ extern "C" {
         val: u64,
         max: ::size_t,
     ) -> ::c_int;
+
+    pub fn getbootfile() -> *const ::c_char;
+    pub fn getbyteorder() -> ::c_int;
+    pub fn getdiskrawname(
+        buf: *mut ::c_char,
+        buflen: ::size_t,
+        name: *const ::c_char,
+    ) -> *const ::c_char;
+    pub fn getdiskcookedname(
+        buf: *mut ::c_char,
+        buflen: ::size_t,
+        name: *const ::c_char,
+    ) -> *const ::c_char;
+    pub fn getfsspecname(
+        buf: *mut ::c_char,
+        buflen: ::size_t,
+        spec: *const ::c_char,
+    ) -> *const ::c_char;
+
+    pub fn strpct(
+        buf: *mut ::c_char,
+        bufsiz: ::size_t,
+        numerator: ::uintmax_t,
+        denominator: ::uintmax_t,
+        precision: ::size_t,
+    ) -> *mut ::c_char;
+    pub fn strspct(
+        buf: *mut ::c_char,
+        bufsiz: ::size_t,
+        numerator: ::intmax_t,
+        denominator: ::intmax_t,
+        precision: ::size_t,
+    ) -> *mut ::c_char;
+    #[link_name = "__login50"]
+    pub fn login(ut: *const utmp);
+    #[link_name = "__loginx50"]
+    pub fn loginx(ut: *const utmpx);
+    pub fn logout(line: *const ::c_char);
+    pub fn logoutx(line: *const ::c_char, status: ::c_int, tpe: ::c_int);
+    pub fn logwtmp(line: *const ::c_char, name: *const ::c_char, host: *const ::c_char);
+    pub fn logwtmpx(
+        line: *const ::c_char,
+        name: *const ::c_char,
+        host: *const ::c_char,
+        status: ::c_int,
+        tpe: ::c_int,
+    );
+
+    pub fn kinfo_getvmmap(pid: ::pid_t, cntp: *mut ::size_t) -> *mut kinfo_vmentry;
 }
 
 cfg_if! {

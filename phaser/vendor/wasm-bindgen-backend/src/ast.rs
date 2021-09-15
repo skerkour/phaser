@@ -261,6 +261,8 @@ pub struct ImportType {
     pub extends: Vec<syn::Path>,
     /// A custom prefix to add and attempt to fall back to, if the type isn't found
     pub vendor_prefixes: Vec<Ident>,
+    /// If present, don't generate a `Deref` impl
+    pub no_deref: bool,
 }
 
 /// The metadata for an Enum being imported
@@ -343,6 +345,8 @@ pub struct StructField {
     pub comments: Vec<String>,
     /// Whether to generate a typescript definition for this field
     pub generate_typescript: bool,
+    /// Whether to use .clone() in the auto-generated getter for this field
+    pub getter_with_clone: bool,
 }
 
 /// Information about an Enum being exported

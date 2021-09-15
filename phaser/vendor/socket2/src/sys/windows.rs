@@ -64,13 +64,13 @@ pub(crate) use winapi::um::ws2tcpip::socklen_t;
 // Used in `Socket`.
 pub(crate) use winapi::shared::ws2def::{
     IPPROTO_IP, SOL_SOCKET, SO_BROADCAST, SO_ERROR, SO_KEEPALIVE, SO_LINGER, SO_OOBINLINE,
-    SO_RCVBUF, SO_RCVTIMEO, SO_REUSEADDR, SO_SNDBUF, SO_SNDTIMEO, TCP_NODELAY,
+    SO_RCVBUF, SO_RCVTIMEO, SO_REUSEADDR, SO_SNDBUF, SO_SNDTIMEO, SO_TYPE, TCP_NODELAY,
 };
 pub(crate) use winapi::shared::ws2ipdef::{
     IPV6_ADD_MEMBERSHIP, IPV6_DROP_MEMBERSHIP, IPV6_MREQ as Ipv6Mreq, IPV6_MULTICAST_HOPS,
     IPV6_MULTICAST_IF, IPV6_MULTICAST_LOOP, IPV6_UNICAST_HOPS, IPV6_V6ONLY, IP_ADD_MEMBERSHIP,
     IP_DROP_MEMBERSHIP, IP_MREQ as IpMreq, IP_MULTICAST_IF, IP_MULTICAST_LOOP, IP_MULTICAST_TTL,
-    IP_TTL,
+    IP_TOS, IP_TTL,
 };
 pub(crate) use winapi::um::winsock2::{linger, MSG_OOB, MSG_PEEK};
 pub(crate) const IPPROTO_IPV6: c_int = winapi::shared::ws2def::IPPROTO_IPV6 as c_int;
@@ -116,6 +116,7 @@ impl Type {
 
     /// Set `WSA_FLAG_NO_HANDLE_INHERIT` on the socket.
     #[cfg(feature = "all")]
+    #[cfg_attr(docsrs, doc(cfg(all(windows, feature = "all"))))]
     pub const fn no_inherit(self) -> Type {
         self._no_inherit()
     }
@@ -190,6 +191,18 @@ fn init() {
 
 pub(crate) type Socket = sock::SOCKET;
 
+pub(crate) unsafe fn socket_from_raw(socket: Socket) -> crate::socket::Inner {
+    crate::socket::Inner::from_raw_socket(socket as RawSocket)
+}
+
+pub(crate) fn socket_as_raw(socket: &crate::socket::Inner) -> Socket {
+    socket.as_raw_socket() as Socket
+}
+
+pub(crate) fn socket_into_raw(socket: crate::socket::Inner) -> Socket {
+    socket.into_raw_socket() as Socket
+}
+
 pub(crate) fn socket(family: c_int, mut ty: c_int, protocol: c_int) -> io::Result<Socket> {
     init();
 
@@ -227,7 +240,7 @@ pub(crate) fn poll_connect(socket: &crate::Socket, timeout: Duration) -> io::Res
     let start = Instant::now();
 
     let mut fd_array = WSAPOLLFD {
-        fd: socket.inner,
+        fd: socket.as_raw(),
         events: POLLRDNORM | POLLWRNORM,
         revents: 0,
     };
@@ -698,12 +711,6 @@ fn ioctlsocket(socket: Socket, cmd: c_long, payload: &mut u_long) -> io::Result<
     .map(|_| ())
 }
 
-pub(crate) fn close(socket: Socket) {
-    unsafe {
-        let _ = sock::closesocket(socket);
-    }
-}
-
 pub(crate) fn to_in_addr(addr: &Ipv4Addr) -> IN_ADDR {
     let mut s_un: in_addr_S_un = unsafe { mem::zeroed() };
     // `S_un` is stored as BE on all machines, and the array is in BE order. So
@@ -732,6 +739,7 @@ pub(crate) fn from_in6_addr(addr: in6_addr) -> Ipv6Addr {
 impl crate::Socket {
     /// Sets `HANDLE_FLAG_INHERIT` using `SetHandleInformation`.
     #[cfg(feature = "all")]
+    #[cfg_attr(docsrs, doc(cfg(all(windows, feature = "all"))))]
     pub fn set_no_inherit(&self, no_inherit: bool) -> io::Result<()> {
         self._set_no_inherit(no_inherit)
     }
@@ -741,7 +749,7 @@ impl crate::Socket {
         // `sock::` path.
         let res = unsafe {
             SetHandleInformation(
-                self.inner as HANDLE,
+                self.as_raw() as HANDLE,
                 winbase::HANDLE_FLAG_INHERIT,
                 !no_inherit as _,
             )
@@ -757,23 +765,19 @@ impl crate::Socket {
 
 impl AsRawSocket for crate::Socket {
     fn as_raw_socket(&self) -> RawSocket {
-        self.inner as RawSocket
+        self.as_raw() as RawSocket
     }
 }
 
 impl IntoRawSocket for crate::Socket {
     fn into_raw_socket(self) -> RawSocket {
-        let socket = self.inner;
-        mem::forget(self);
-        socket as RawSocket
+        self.into_raw() as RawSocket
     }
 }
 
 impl FromRawSocket for crate::Socket {
     unsafe fn from_raw_socket(socket: RawSocket) -> crate::Socket {
-        crate::Socket {
-            inner: socket as Socket,
-        }
+        crate::Socket::from_raw(socket as Socket)
     }
 }
 

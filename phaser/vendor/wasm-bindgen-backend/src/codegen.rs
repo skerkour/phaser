@@ -274,8 +274,19 @@ impl ToTokens for ast::StructField {
         let getter = &self.getter;
         let setter = &self.setter;
 
-        let assert_copy = quote! { assert_copy::<#ty>() };
-        let assert_copy = respan(assert_copy, ty);
+        let maybe_assert_copy = if self.getter_with_clone {
+            quote! {}
+        } else {
+            quote! { assert_copy::<#ty>() }
+        };
+        let maybe_assert_copy = respan(maybe_assert_copy, ty);
+
+        let maybe_clone = if self.getter_with_clone {
+            quote! { .clone() }
+        } else {
+            quote! {}
+        };
+
         (quote! {
             #[doc(hidden)]
             #[allow(clippy::all)]
@@ -287,11 +298,11 @@ impl ToTokens for ast::StructField {
                 use wasm_bindgen::convert::IntoWasmAbi;
 
                 fn assert_copy<T: Copy>(){}
-                #assert_copy;
+                #maybe_assert_copy;
 
                 let js = js as *mut WasmRefCell<#struct_name>;
                 assert_not_null(js);
-                let val = (*js).borrow().#rust_name;
+                let val = (*js).borrow().#rust_name#maybe_clone;
                 <#ty as IntoWasmAbi>::into_abi(val)
             }
         })
@@ -448,9 +459,10 @@ impl TryToTokens for ast::Export {
         // For an `async` function we always run it through `future_to_promise`
         // since we're returning a promise to JS, and this will implicitly
         // require that the function returns a `Future<Output = Result<...>>`
-        let (ret_ty, ret_expr) = if self.function.r#async {
+        let (ret_ty, inner_ret_ty, ret_expr) = if self.function.r#async {
             if self.start {
                 (
+                    quote! { () },
                     quote! { () },
                     quote! {
                         wasm_bindgen_futures::spawn_local(async move {
@@ -461,6 +473,7 @@ impl TryToTokens for ast::Export {
             } else {
                 (
                     quote! { wasm_bindgen::JsValue },
+                    quote! { #syn_ret },
                     quote! {
                         wasm_bindgen_futures::future_to_promise(async move {
                             <#syn_ret as wasm_bindgen::__rt::IntoJsResult>::into_js_result(#ret.await)
@@ -471,16 +484,18 @@ impl TryToTokens for ast::Export {
         } else if self.start {
             (
                 quote! { () },
+                quote! { () },
                 quote! { <#syn_ret as wasm_bindgen::__rt::Start>::start(#ret) },
             )
         } else {
-            (quote! { #syn_ret }, quote! { #ret })
+            (quote! { #syn_ret }, quote! { #syn_ret }, quote! { #ret })
         };
 
         let projection = quote! { <#ret_ty as wasm_bindgen::convert::ReturnWasmAbi> };
         let convert_ret = quote! { #projection::return_abi(#ret_expr) };
         let describe_ret = quote! {
             <#ret_ty as WasmDescribe>::describe();
+            <#inner_ret_ty as WasmDescribe>::describe();
         };
         let nargs = self.function.arguments.len() as u32;
         let attrs = &self.function.rust_attrs;
@@ -607,6 +622,8 @@ impl ToTokens for ast::ImportType {
             }
         });
 
+        let no_deref = self.no_deref;
+
         (quote! {
             #[allow(bad_style)]
             #(#attrs)*
@@ -624,21 +641,12 @@ impl ToTokens for ast::ImportType {
                 use wasm_bindgen::convert::{OptionIntoWasmAbi, OptionFromWasmAbi};
                 use wasm_bindgen::convert::RefFromWasmAbi;
                 use wasm_bindgen::describe::WasmDescribe;
-                use wasm_bindgen::{JsValue, JsCast};
+                use wasm_bindgen::{JsValue, JsCast, JsObject};
                 use wasm_bindgen::__rt::core;
 
                 impl WasmDescribe for #rust_name {
                     fn describe() {
                         #description
-                    }
-                }
-
-                impl core::ops::Deref for #rust_name {
-                    type Target = #internal_obj;
-
-                    #[inline]
-                    fn deref(&self) -> &#internal_obj {
-                        &self.obj
                     }
                 }
 
@@ -761,10 +769,27 @@ impl ToTokens for ast::ImportType {
                     }
                 }
 
+                impl JsObject for #rust_name {}
+
                 ()
             };
         })
         .to_tokens(tokens);
+
+        if !no_deref {
+            (quote! {
+                #[allow(clippy::all)]
+                impl core::ops::Deref for #rust_name {
+                    type Target = #internal_obj;
+
+                    #[inline]
+                    fn deref(&self) -> &#internal_obj {
+                        &self.obj
+                    }
+                }
+            })
+            .to_tokens(tokens);
+        }
 
         for superclass in self.extends.iter() {
             (quote! {
@@ -1149,6 +1174,7 @@ impl<'a> ToTokens for DescribeImport<'a> {
                 inform(0);
                 inform(#nargs);
                 #(<#argtys as WasmDescribe>::describe();)*
+                #inform_ret
                 #inform_ret
             },
             attrs: f.function.rust_attrs.clone(),

@@ -195,10 +195,10 @@ fn librustc_parse_and_rewrite(input: &str) -> Option<P<ast::Expr>> {
 /// This method operates on librustc objects.
 fn librustc_brackets(mut librustc_expr: P<ast::Expr>) -> Option<P<ast::Expr>> {
     use rustc_ast::ast::{
-        Block, BorrowKind, Expr, ExprField, ExprKind, GenericArg, Pat, Stmt, StmtKind, StructExpr,
-        StructRest, Ty,
+        Attribute, Block, BorrowKind, Expr, ExprField, ExprKind, GenericArg, Local, LocalKind, Pat,
+        Stmt, StmtKind, StructExpr, StructRest, Ty,
     };
-    use rustc_ast::mut_visit::{noop_visit_generic_arg, MutVisitor};
+    use rustc_ast::mut_visit::{noop_visit_generic_arg, noop_visit_local, MutVisitor};
     use rustc_data_structures::map_in_place::MapInPlace;
     use rustc_data_structures::thin_vec::ThinVec;
     use rustc_span::DUMMY_SP;
@@ -286,8 +286,12 @@ fn librustc_brackets(mut librustc_expr: P<ast::Expr>) -> Option<P<ast::Expr>> {
 
         fn visit_generic_arg(&mut self, arg: &mut GenericArg) {
             match arg {
-                // Don't wrap const generic arg as that's invalid syntax.
-                GenericArg::Const(arg) => noop_visit_expr(&mut arg.value, self),
+                // Don't wrap unbraced const generic arg as that's invalid syntax.
+                GenericArg::Const(anon_const) => {
+                    if let ExprKind::Block(..) = &mut anon_const.value.kind {
+                        noop_visit_expr(&mut anon_const.value, self);
+                    }
+                }
                 _ => noop_visit_generic_arg(arg, self),
             }
         }
@@ -300,6 +304,13 @@ fn librustc_brackets(mut librustc_expr: P<ast::Expr>) -> Option<P<ast::Expr>> {
             self.visit_span(&mut block.span);
         }
 
+        fn visit_local(&mut self, local: &mut P<Local>) {
+            match local.kind {
+                LocalKind::InitElse(..) => {}
+                _ => noop_visit_local(local, self),
+            }
+        }
+
         // We don't want to look at expressions that might appear in patterns or
         // types yet. We'll look into comparing those in the future. For now
         // focus on expressions appearing in other places.
@@ -309,6 +320,10 @@ fn librustc_brackets(mut librustc_expr: P<ast::Expr>) -> Option<P<ast::Expr>> {
 
         fn visit_ty(&mut self, ty: &mut P<Ty>) {
             let _ = ty;
+        }
+
+        fn visit_attribute(&mut self, attr: &mut Attribute) {
+            let _ = attr;
         }
     }
 
@@ -346,8 +361,11 @@ fn syn_brackets(syn_expr: syn::Expr) -> syn::Expr {
 
         fn fold_generic_argument(&mut self, arg: GenericArgument) -> GenericArgument {
             match arg {
-                // Don't wrap const generic arg as that's invalid syntax.
-                GenericArgument::Const(a) => GenericArgument::Const(fold_expr(self, a)),
+                GenericArgument::Const(arg) => GenericArgument::Const(match arg {
+                    Expr::Block(_) => fold_expr(self, arg),
+                    // Don't wrap unbraced const generic arg as that's invalid syntax.
+                    _ => arg,
+                }),
                 _ => fold_generic_argument(self, arg),
             }
         }
@@ -357,8 +375,11 @@ fn syn_brackets(syn_expr: syn::Expr) -> syn::Expr {
             arg: GenericMethodArgument,
         ) -> GenericMethodArgument {
             match arg {
-                // Don't wrap const generic arg as that's invalid syntax.
-                GenericMethodArgument::Const(a) => GenericMethodArgument::Const(fold_expr(self, a)),
+                GenericMethodArgument::Const(arg) => GenericMethodArgument::Const(match arg {
+                    Expr::Block(_) => fold_expr(self, arg),
+                    // Don't wrap unbraced const generic arg as that's invalid syntax.
+                    _ => arg,
+                }),
                 _ => fold_generic_method_argument(self, arg),
             }
         }
@@ -367,7 +388,13 @@ fn syn_brackets(syn_expr: syn::Expr) -> syn::Expr {
             match stmt {
                 // Don't wrap toplevel expressions in statements.
                 Stmt::Expr(e) => Stmt::Expr(fold_expr(self, e)),
-                Stmt::Semi(e, semi) => Stmt::Semi(fold_expr(self, e), semi),
+                Stmt::Semi(e, semi) => {
+                    if let Expr::Verbatim(_) = e {
+                        Stmt::Semi(e, semi)
+                    } else {
+                        Stmt::Semi(fold_expr(self, e), semi)
+                    }
+                }
                 s => s,
             }
         }
@@ -398,7 +425,7 @@ fn collect_exprs(file: syn::File) -> Vec<syn::Expr> {
     impl Fold for CollectExprs {
         fn fold_expr(&mut self, expr: Expr) -> Expr {
             match expr {
-                Expr::Verbatim(tokens) if tokens.is_empty() => {}
+                Expr::Verbatim(_) => {}
                 _ => self.0.push(expr),
             }
 
