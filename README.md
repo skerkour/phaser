@@ -1,6 +1,6 @@
 <p align="center">
   <img alt="Phaser logo" src="https://kerkour.com/imgs/phaser.svg" height="200" />
-  <h1 align="center">Phaser</h1>
+  <h1 align="center">Phaser (Work In Progress 🚧  )</h1>
   <h3 align="center">Automated attack surface mapper and vulnerability scanner</h3>
 </p>
 
