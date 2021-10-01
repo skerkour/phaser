@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use futures_channel::oneshot;
 #[cfg(feature = "runtime")]
 use tokio::time::{Duration, Instant, Interval};
+use tracing::{debug, trace};
 
 use super::client::Ver;
 use crate::common::{exec::Exec, task, Future, Pin, Poll, Unpin};
@@ -1004,6 +1005,7 @@ mod tests {
 
     #[derive(Debug)]
     struct CanClose {
+        #[allow(unused)]
         val: i32,
         closed: bool,
     }

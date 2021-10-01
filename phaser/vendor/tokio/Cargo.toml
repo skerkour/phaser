@@ -13,11 +13,11 @@
 [package]
 edition = "2018"
 name = "tokio"
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 description = "An event-driven, non-blocking I/O platform for writing asynchronous I/O\nbacked applications.\n"
 homepage = "https://tokio.rs"
-documentation = "https://docs.rs/tokio/1.11.0/tokio/"
+documentation = "https://docs.rs/tokio/1.12.0/tokio/"
 readme = "README.md"
 keywords = ["io", "async", "non-blocking", "futures"]
 categories = ["asynchronous", "network-programming"]
@@ -108,6 +108,9 @@ time = []
 [target."cfg(loom)".dev-dependencies.loom]
 version = "0.5"
 features = ["futures", "checkpoint"]
+[target."cfg(target_os = \"freebsd\")".dev-dependencies.mio-aio]
+version = "0.6.0"
+features = ["tokio"]
 [target."cfg(tokio_unstable)".dependencies.tracing]
 version = "0.1.21"
 features = ["std"]

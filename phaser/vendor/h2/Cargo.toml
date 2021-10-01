@@ -12,11 +12,11 @@
 [package]
 edition = "2018"
 name = "h2"
-version = "0.3.4"
+version = "0.3.6"
 authors = ["Carl Lerche <me@carllerche.com>", "Sean McArthur <sean@seanmonstar.com>"]
 exclude = ["fixtures/**", "ci/**"]
 description = "An HTTP/2.0 client and server"
-documentation = "https://docs.rs/h2/0.3.4"
+documentation = "https://docs.rs/h2/0.3.6"
 readme = "README.md"
 keywords = ["http", "async", "non-blocking"]
 categories = ["asynchronous", "web-programming", "network-programming"]

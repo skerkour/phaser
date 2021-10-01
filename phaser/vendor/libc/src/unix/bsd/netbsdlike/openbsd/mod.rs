@@ -1546,6 +1546,7 @@ extern "C" {
         stacksize: *mut ::size_t,
     ) -> ::c_int;
     pub fn pthread_main_np() -> ::c_int;
+    pub fn pthread_get_name_np(tid: ::pthread_t, name: *mut ::c_char, len: ::size_t);
     pub fn pthread_set_name_np(tid: ::pthread_t, name: *const ::c_char);
     pub fn pthread_stackseg_np(thread: ::pthread_t, sinfo: *mut ::stack_t) -> ::c_int;
 
@@ -1561,6 +1562,7 @@ extern "C" {
     pub fn setresgid(rgid: ::gid_t, egid: ::gid_t, sgid: ::gid_t) -> ::c_int;
     pub fn setresuid(ruid: ::uid_t, euid: ::uid_t, suid: ::uid_t) -> ::c_int;
     pub fn ptrace(request: ::c_int, pid: ::pid_t, addr: caddr_t, data: ::c_int) -> ::c_int;
+    pub fn utrace(label: *const ::c_char, addr: *const ::c_void, len: ::size_t) -> ::c_int;
     pub fn memmem(
         haystack: *const ::c_void,
         haystacklen: ::size_t,

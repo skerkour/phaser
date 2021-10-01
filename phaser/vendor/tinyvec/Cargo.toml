@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "tinyvec"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["Lokathor <zefria@gmail.com>"]
 description = "`tinyvec` provides 100% safe vec-like data structures."
 keywords = ["vec", "no_std", "no-std"]
@@ -20,17 +20,17 @@ categories = ["data-structures", "no-std"]
 license = "Zlib OR Apache-2.0 OR MIT"
 repository = "https://github.com/Lokathor/tinyvec"
 [package.metadata.docs.rs]
-features = ["alloc", "grab_spare_slice", "rustc_1_40", "rustc_1_55", "serde"]
+features = ["alloc", "std", "grab_spare_slice", "rustc_1_40", "rustc_1_55", "serde"]
 rustdoc-args = ["--cfg", "docs_rs"]
 
 [package.metadata.playground]
-features = ["alloc", "grab_spare_slice", "rustc_1_40", "rustc_1_55", "serde"]
+features = ["alloc", "std", "grab_spare_slice", "rustc_1_40", "rustc_1_55", "serde"]
 [profile.test]
 opt-level = 3
 
 [[test]]
 name = "tinyvec"
-required-features = ["alloc"]
+required-features = ["alloc", "std"]
 
 [[bench]]
 name = "macros"
@@ -62,3 +62,4 @@ grab_spare_slice = []
 nightly_slice_partition_dedup = []
 rustc_1_40 = []
 rustc_1_55 = ["rustc_1_40"]
+std = []

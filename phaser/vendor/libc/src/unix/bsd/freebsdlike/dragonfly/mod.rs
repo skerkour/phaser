@@ -1335,7 +1335,7 @@ f! {
         ()
     }
 
-    pub fn CPU_ISSET(cpu: usize, cpuset: &mut cpu_set_t) -> bool {
+    pub fn CPU_ISSET(cpu: usize, cpuset: &cpu_set_t) -> bool {
         let (idx, offset) = ((cpu >> 6) & 3, cpu & 63);
         0 != cpuset.ary[idx] & (1 << offset)
     }
@@ -1390,6 +1390,7 @@ extern "C" {
     pub fn sched_getaffinity(pid: ::pid_t, cpusetsize: ::size_t, mask: *mut cpu_set_t) -> ::c_int;
     pub fn sched_setaffinity(pid: ::pid_t, cpusetsize: ::size_t, mask: *const cpu_set_t)
         -> ::c_int;
+    pub fn sched_getcpu() -> ::c_int;
     pub fn setproctitle(fmt: *const ::c_char, ...);
 
     pub fn shmget(key: ::key_t, size: ::size_t, shmflg: ::c_int) -> ::c_int;

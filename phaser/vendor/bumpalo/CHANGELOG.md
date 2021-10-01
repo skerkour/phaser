@@ -28,6 +28,17 @@ Released YYYY-MM-DD.
 
 --------------------------------------------------------------------------------
 
+## 3.7.1
+
+Released 2021-09-17.
+
+### Changed
+
+* The packaged crate uploaded to crates.io when `bumpalo` is published is now
+  smaller, thanks to excluding unnecessary files.
+
+--------------------------------------------------------------------------------
+
 ## 3.7.0
 
 Released 2020-05-28.
@@ -203,7 +214,7 @@ Released 2020-03-24.
   2. I've written a quickcheck test to exercise `realloc`. Without the bug fix
      in this patch, this quickcheck immediately triggers invalid reads when run
      under `valgrind`. We didn't previously have quickchecks that exercised
-     `realloc` beacuse `realloc` isn't publicly exposed directly, and instead
+     `realloc` because `realloc` isn't publicly exposed directly, and instead
      can only be indirectly called. This new quickcheck test exercises `realloc`
      via `bumpalo::collections::Vec::resize` and
      `bumpalo::collections::Vec::shrink_to_fit` calls.
@@ -274,7 +285,7 @@ Released 2019-12-20.
 
 * Added `Bump::alloc_slice_fill_copy` and `Bump::alloc_slice_fill_clone` for
   creating slices of length `n` that are filled with copies or clones of an
-  inital element.
+  initial element.
 
 * Added `Bump::alloc_slice_fill_default` for creating slices of length `n` with
   the element type's default instance.

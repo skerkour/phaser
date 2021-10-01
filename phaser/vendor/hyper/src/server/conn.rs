@@ -43,38 +43,47 @@
 //! # }
 //! ```
 
-use std::error::Error as StdError;
-use std::fmt;
-#[cfg(not(all(feature = "http1", feature = "http2")))]
+#[cfg(all(
+    any(feature = "http1", feature = "http2"),
+    not(all(feature = "http1", feature = "http2"))
+))]
 use std::marker::PhantomData;
 #[cfg(feature = "tcp")]
 use std::net::SocketAddr;
 #[cfg(all(feature = "runtime", feature = "http2"))]
 use std::time::Duration;
 
-use bytes::Bytes;
-use pin_project_lite::pin_project;
-use tokio::io::{AsyncRead, AsyncWrite};
-
-use super::accept::Accept;
-use crate::body::{Body, HttpBody};
-use crate::common::exec::{ConnStreamExec, Exec, NewSvcExec};
 #[cfg(feature = "http2")]
 use crate::common::io::Rewind;
-#[cfg(not(all(feature = "http1", feature = "http2")))]
-use crate::common::Never;
-use crate::common::{task, Future, Pin, Poll, Unpin};
 #[cfg(all(feature = "http1", feature = "http2"))]
 use crate::error::{Kind, Parse};
-use crate::proto;
-use crate::service::{HttpService, MakeServiceRef};
 #[cfg(feature = "http1")]
 use crate::upgrade::Upgraded;
 
-use self::spawn_all::NewSvcTask;
-pub(super) use self::spawn_all::NoopWatcher;
-pub(super) use self::spawn_all::Watcher;
-pub(super) use self::upgrades::UpgradeableConnection;
+cfg_feature! {
+    #![any(feature = "http1", feature = "http2")]
+
+    use std::error::Error as StdError;
+    use std::fmt;
+
+    use bytes::Bytes;
+    use pin_project_lite::pin_project;
+    use tokio::io::{AsyncRead, AsyncWrite};
+    use tracing::trace;
+
+    use super::accept::Accept;
+    use crate::body::{Body, HttpBody};
+    use crate::common::{task, Future, Pin, Poll, Unpin};
+    #[cfg(not(all(feature = "http1", feature = "http2")))]
+    use crate::common::Never;
+    use crate::common::exec::{ConnStreamExec, Exec, NewSvcExec};
+    use crate::proto;
+    use crate::service::{HttpService, MakeServiceRef};
+    use self::spawn_all::NewSvcTask;
+
+    pub(super) use self::spawn_all::{NoopWatcher, Watcher};
+    pub(super) use self::upgrades::UpgradeableConnection;
+}
 
 #[cfg(feature = "tcp")]
 pub use super::tcp::{AddrIncoming, AddrStream};
@@ -86,6 +95,8 @@ pub use super::tcp::{AddrIncoming, AddrStream};
 /// If you don't have need to manage connections yourself, consider using the
 /// higher-level [Server](super) API.
 #[derive(Clone, Debug)]
+#[cfg(any(feature = "http1", feature = "http2"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "http1", feature = "http2"))))]
 pub struct Http<E = Exec> {
     exec: E,
     h1_half_close: bool,
@@ -100,6 +111,7 @@ pub struct Http<E = Exec> {
 }
 
 /// The internal mode of HTTP protocol which indicates the behavior when a parse error occurs.
+#[cfg(any(feature = "http1", feature = "http2"))]
 #[derive(Clone, Debug, PartialEq)]
 enum ConnectionMode {
     /// Always use HTTP/1 and do not upgrade when a parse error occurs.
@@ -113,6 +125,7 @@ enum ConnectionMode {
     Fallback,
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 pin_project! {
     /// A stream mapping incoming IOs to new services.
     ///
@@ -127,6 +140,7 @@ pin_project! {
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 pin_project! {
     /// A future building a new `Service` to a `Connection`.
     ///
@@ -134,6 +148,7 @@ pin_project! {
     /// a `Connection`.
     #[must_use = "futures do nothing unless polled"]
     #[derive(Debug)]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "http1", feature = "http2"))))]
     pub struct Connecting<I, F, E = Exec> {
         #[pin]
         future: F,
@@ -142,6 +157,7 @@ pin_project! {
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 pin_project! {
     #[must_use = "futures do nothing unless polled"]
     #[derive(Debug)]
@@ -154,11 +170,13 @@ pin_project! {
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 pin_project! {
     /// A future binding a connection with a Service.
     ///
     /// Polling this future will drive HTTP forward.
     #[must_use = "futures do nothing unless polled"]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "http1", feature = "http2"))))]
     pub struct Connection<T, S, E = Exec>
     where
         S: HttpService<Body>,
@@ -172,18 +190,19 @@ pin_project! {
 type Http1Dispatcher<T, B, S> =
     proto::h1::Dispatcher<proto::h1::dispatch::Server<S, Body>, B, T, proto::ServerTransaction>;
 
-#[cfg(not(feature = "http1"))]
+#[cfg(all(not(feature = "http1"), feature = "http2"))]
 type Http1Dispatcher<T, B, S> = (Never, PhantomData<(T, Box<Pin<B>>, Box<Pin<S>>)>);
 
 #[cfg(feature = "http2")]
 type Http2Server<T, B, S, E> = proto::h2::Server<Rewind<T>, S, B, E>;
 
-#[cfg(not(feature = "http2"))]
+#[cfg(all(not(feature = "http2"), feature = "http1"))]
 type Http2Server<T, B, S, E> = (
     Never,
     PhantomData<(T, Box<Pin<S>>, Box<Pin<B>>, Box<Pin<E>>)>,
 );
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 pin_project! {
     #[project = ProtoServerProj]
     pub(super) enum ProtoServer<T, B, S, E = Exec>
@@ -209,7 +228,10 @@ enum Fallback<E> {
     Http1Only,
 }
 
-#[cfg(not(all(feature = "http1", feature = "http2")))]
+#[cfg(all(
+    any(feature = "http1", feature = "http2"),
+    not(all(feature = "http1", feature = "http2"))
+))]
 type Fallback<E> = PhantomData<E>;
 
 #[cfg(all(feature = "http1", feature = "http2"))]
@@ -230,6 +252,8 @@ impl<E> Unpin for Fallback<E> {}
 /// This allows taking apart a `Connection` at a later time, in order to
 /// reclaim the IO object, and additional related pieces.
 #[derive(Debug)]
+#[cfg(any(feature = "http1", feature = "http2"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "http1", feature = "http2"))))]
 pub struct Parts<T, S> {
     /// The original IO object used in the handshake.
     pub io: T,
@@ -249,6 +273,7 @@ pub struct Parts<T, S> {
 
 // ===== impl Http =====
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl Http {
     /// Creates a new instance of the HTTP protocol, ready to spawn a server or
     /// start accepting connections.
@@ -268,6 +293,7 @@ impl Http {
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<E> Http<E> {
     /// Sets whether HTTP1 is required.
     ///
@@ -633,6 +659,7 @@ impl<E> Http<E> {
 
 // ===== impl Connection =====
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, B, S, E> Connection<I, S, E>
 where
     S: HttpService<Body, ResBody = B>,
@@ -714,10 +741,6 @@ where
     /// upgrade. Once the upgrade is completed, the connection would be "done",
     /// but it is not desired to actually shutdown the IO object. Instead you
     /// would take it back using `into_parts`.
-    ///
-    /// Use [`poll_fn`](https://docs.rs/futures/0.1.25/futures/future/fn.poll_fn.html)
-    /// and [`try_ready!`](https://docs.rs/futures/0.1.25/futures/macro.try_ready.html)
-    /// to work with this function; or use the `without_shutdown` wrapper.
     pub fn poll_without_shutdown(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>>
     where
         S: Unpin,
@@ -755,6 +778,10 @@ where
 
     /// Prevent shutdown of the underlying IO object at the end of service the request,
     /// instead run `into_parts`. This is a convenience wrapper over `poll_without_shutdown`.
+    ///
+    /// # Error
+    ///
+    /// This errors if the underlying connection protocol is not HTTP/1.
     pub fn without_shutdown(self) -> impl Future<Output = crate::Result<Parts<I, S>>>
     where
         S: Unpin,
@@ -764,7 +791,7 @@ where
         let mut conn = Some(self);
         futures_util::future::poll_fn(move |cx| {
             ready!(conn.as_mut().unwrap().poll_without_shutdown(cx))?;
-            Poll::Ready(Ok(conn.take().unwrap().into_parts()))
+            Poll::Ready(conn.take().unwrap().try_into_parts().ok_or_else(crate::Error::new_without_shutdown_not_h1))
         })
     }
 
@@ -802,6 +829,7 @@ where
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, B, S, E> Future for Connection<I, S, E>
 where
     S: HttpService<Body, ResBody = B>,
@@ -848,6 +876,7 @@ where
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, S> fmt::Debug for Connection<I, S>
 where
     S: HttpService<Body>,
@@ -859,6 +888,7 @@ where
 
 // ===== impl ConnectionMode =====
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl Default for ConnectionMode {
     #[cfg(all(feature = "http1", feature = "http2"))]
     fn default() -> ConnectionMode {
@@ -878,6 +908,7 @@ impl Default for ConnectionMode {
 
 // ===== impl Serve =====
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, S, E> Serve<I, S, E> {
     /// Get a reference to the incoming stream.
     #[inline]
@@ -899,6 +930,7 @@ impl<I, S, E> Serve<I, S, E> {
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, IO, IE, S, B, E> Serve<I, S, E>
 where
     I: Accept<Conn = IO, Error = IE>,
@@ -937,6 +969,7 @@ where
 
 // ===== impl Connecting =====
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, F, S, FE, E, B> Future for Connecting<I, F, E>
 where
     I: AsyncRead + AsyncWrite + Unpin,
@@ -958,19 +991,21 @@ where
 
 // ===== impl SpawnAll =====
 
-#[cfg(feature = "tcp")]
+#[cfg(all(feature = "tcp", any(feature = "http1", feature = "http2")))]
 impl<S, E> SpawnAll<AddrIncoming, S, E> {
     pub(super) fn local_addr(&self) -> SocketAddr {
         self.serve.incoming.local_addr()
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, S, E> SpawnAll<I, S, E> {
     pub(super) fn incoming_ref(&self) -> &I {
         self.serve.incoming_ref()
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<I, IO, IE, S, B, E> SpawnAll<I, S, E>
 where
     I: Accept<Conn = IO, Error = IE>,
@@ -1008,6 +1043,7 @@ where
 
 // ===== impl ProtoServer =====
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 impl<T, B, S, E> Future for ProtoServer<T, B, S, E>
 where
     T: AsyncRead + AsyncWrite + Unpin,
@@ -1034,9 +1070,11 @@ where
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 pub(crate) mod spawn_all {
     use std::error::Error as StdError;
     use tokio::io::{AsyncRead, AsyncWrite};
+    use tracing::debug;
 
     use super::{Connecting, UpgradeableConnection};
     use crate::body::{Body, HttpBody};
@@ -1176,6 +1214,7 @@ pub(crate) mod spawn_all {
     }
 }
 
+#[cfg(any(feature = "http1", feature = "http2"))]
 mod upgrades {
     use super::*;
 

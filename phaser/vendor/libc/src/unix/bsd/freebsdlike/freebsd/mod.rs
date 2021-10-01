@@ -5,6 +5,7 @@ pub type lwpid_t = i32;
 pub type blksize_t = i32;
 pub type clockid_t = ::c_int;
 pub type sem_t = _sem;
+pub type timer_t = *mut __c_anonymous__timer;
 
 pub type fsblkcnt_t = u64;
 pub type fsfilcnt_t = u64;
@@ -23,6 +24,8 @@ pub type posix_spawn_file_actions_t = *mut ::c_void;
 pub type pthread_spinlock_t = *mut __c_anonymous_pthread_spinlock;
 pub type pthread_barrierattr_t = *mut __c_anonymous_pthread_barrierattr;
 pub type pthread_barrier_t = *mut __c_anonymous_pthread_barrier;
+
+pub type uuid_t = ::uuid;
 
 s! {
     pub struct aiocb {
@@ -152,6 +155,15 @@ s! {
         c_spare: [u32; 1],
     }
 
+    pub struct uuid {
+        pub time_low: u32,
+        pub time_mid: u16,
+        pub time_hi_and_version: u16,
+        pub clock_seq_hi_and_reserved: u8,
+        pub clock_seq_low: u8,
+        pub node: [u8; _UUID_NODE_LEN],
+    }
+
     pub struct __c_anonymous_pthread_spinlock {
         s_clock: umutex,
     }
@@ -237,6 +249,15 @@ s! {
         argv: *mut ::c_void,
         envv: *mut ::c_void,
         core: ::uintptr_t,
+    }
+
+    pub struct itimerspec {
+        pub it_interval: ::timespec,
+        pub it_value: ::timespec,
+    }
+
+    pub struct __c_anonymous__timer {
+        _priv: [::c_int; 3],
     }
 }
 
@@ -624,6 +645,7 @@ pub const Q_SETQUOTA: ::c_int = 0x800;
 
 pub const MAP_GUARD: ::c_int = 0x00002000;
 pub const MAP_EXCL: ::c_int = 0x00004000;
+pub const MAP_PREFAULT_READ: ::c_int = 0x00040000;
 pub const MAP_ALIGNED_SUPER: ::c_int = 1 << 24;
 
 pub const POSIX_FADV_NORMAL: ::c_int = 0;
@@ -1382,6 +1404,8 @@ pub const _PC_ACL_NFS4: ::c_int = 64;
 
 pub const _SC_CPUSET_SIZE: ::c_int = 122;
 
+pub const _UUID_NODE_LEN: usize = 6;
+
 // Flags which can be passed to pdfork(2)
 pub const PD_DAEMON: ::c_int = 0x00000001;
 pub const PD_CLOEXEC: ::c_int = 0x00000002;
@@ -1527,7 +1551,7 @@ f! {
         ()
     }
 
-    pub fn CPU_ISSET(cpu: usize, cpuset: &mut cpuset_t) -> bool {
+    pub fn CPU_ISSET(cpu: usize, cpuset: &cpuset_t) -> bool {
         let bitset_bits = ::mem::size_of::<::c_long>();
         let (idx, offset) = (cpu / bitset_bits, cpu % bitset_bits);
         0 != cpuset.__bits[idx] & (1 << offset)
@@ -1765,6 +1789,8 @@ extern "C" {
         newfd: ::c_int,
     ) -> ::c_int;
 
+    pub fn uuidgen(store: *mut uuid, count: ::c_int) -> ::c_int;
+
     pub fn pthread_getthreadid_np() -> ::c_int;
     pub fn pthread_getaffinity_np(
         td: ::pthread_t,
@@ -1910,6 +1936,16 @@ extern "C" {
     pub fn kld_load(name: *const ::c_char) -> ::c_int;
 
     pub fn kinfo_getvmmap(pid: ::pid_t, cntp: *mut ::c_int) -> *mut kinfo_vmentry;
+
+    pub fn hexdump(ptr: *const ::c_void, length: ::c_int, hdr: *const ::c_char, flags: ::c_int);
+    pub fn humanize_number(
+        buf: *mut ::c_char,
+        len: ::size_t,
+        number: i64,
+        suffix: *const ::c_char,
+        scale: ::c_int,
+        flags: ::c_int,
+    ) -> ::c_int;
 }
 
 #[link(name = "procstat")]
@@ -1935,6 +1971,20 @@ extern "C" {
     ) -> *mut kinfo_vmentry;
     pub fn procstat_freevmmap(procstat: *mut procstat, vmmap: *mut kinfo_vmentry);
     pub fn procstat_close(procstat: *mut procstat);
+}
+
+#[link(name = "rt")]
+extern "C" {
+    pub fn timer_create(clock_id: clockid_t, evp: *mut sigevent, timerid: *mut timer_t) -> ::c_int;
+    pub fn timer_delete(timerid: timer_t) -> ::c_int;
+    pub fn timer_getoverrun(timerid: timer_t) -> ::c_int;
+    pub fn timer_gettime(timerid: timer_t, value: *mut itimerspec) -> ::c_int;
+    pub fn timer_settime(
+        timerid: timer_t,
+        flags: ::c_int,
+        value: *const itimerspec,
+        ovalue: *mut itimerspec,
+    ) -> ::c_int;
 }
 
 cfg_if! {

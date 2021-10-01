@@ -1,14 +1,13 @@
-use crate::hpack::{Decoder, Encode, Encoder, Header};
+use crate::hpack::{Decoder, Encoder, Header};
 
 use http::header::{HeaderName, HeaderValue};
 
-use bytes::{buf::BufMut, BytesMut};
+use bytes::BytesMut;
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use rand::{Rng, SeedableRng, StdRng};
 
 use std::io::Cursor;
 
-const MIN_CHUNK: usize = 16;
 const MAX_CHUNK: usize = 2 * 1024;
 
 #[test]
@@ -36,17 +35,8 @@ fn hpack_fuzz_seeded() {
 
 #[derive(Debug, Clone)]
 struct FuzzHpack {
-    // The magic seed that makes the test case reproducible
-    seed: [usize; 4],
-
     // The set of headers to encode / decode
     frames: Vec<HeaderFrame>,
-
-    // The list of chunk sizes to do it in
-    chunks: Vec<usize>,
-
-    // Number of times reduced
-    reduced: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -128,23 +118,10 @@ impl FuzzHpack {
             frames.push(frame);
         }
 
-        // Now, generate the buffer sizes used to encode
-        let mut chunks = vec![];
-
-        for _ in 0..rng.gen_range(0, 100) {
-            chunks.push(rng.gen_range(MIN_CHUNK, MAX_CHUNK));
-        }
-
-        FuzzHpack {
-            seed: seed,
-            frames: frames,
-            chunks: chunks,
-            reduced: 0,
-        }
+        FuzzHpack { frames }
     }
 
     fn run(self) {
-        let mut chunks = self.chunks;
         let frames = self.frames;
         let mut expect = vec![];
 
@@ -173,11 +150,7 @@ impl FuzzHpack {
                 }
             }
 
-            let mut input = frame.headers.into_iter();
-            let mut index = None;
-
-            let mut max_chunk = chunks.pop().unwrap_or(MAX_CHUNK);
-            let mut buf = BytesMut::with_capacity(max_chunk);
+            let mut buf = BytesMut::new();
 
             if let Some(max) = frame.resizes.iter().max() {
                 decoder.queue_size_update(*max);
@@ -188,25 +161,7 @@ impl FuzzHpack {
                 encoder.update_max_size(*resize);
             }
 
-            loop {
-                match encoder.encode(index.take(), &mut input, &mut (&mut buf).limit(max_chunk)) {
-                    Encode::Full => break,
-                    Encode::Partial(i) => {
-                        index = Some(i);
-
-                        // Decode the chunk!
-                        decoder
-                            .decode(&mut Cursor::new(&mut buf), |h| {
-                                let e = expect.remove(0);
-                                assert_eq!(h, e);
-                            })
-                            .expect("partial decode");
-
-                        max_chunk = chunks.pop().unwrap_or(MAX_CHUNK);
-                        buf = BytesMut::with_capacity(max_chunk);
-                    }
-                }
-            }
+            encoder.encode(frame.headers, &mut buf);
 
             // Decode the chunk!
             decoder

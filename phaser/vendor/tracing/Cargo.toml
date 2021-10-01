@@ -13,7 +13,7 @@
 [package]
 edition = "2018"
 name = "tracing"
-version = "0.1.27"
+version = "0.1.28"
 authors = ["Eliza Weisman <eliza@buoyant.io>", "Tokio Contributors <team@tokio.rs>"]
 description = "Application-level tracing for Rust.\n"
 homepage = "https://tokio.rs"

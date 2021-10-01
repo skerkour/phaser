@@ -158,7 +158,11 @@ pub mod parsing {
         // expression statements.
         let ahead = input.fork();
         if let Ok(path) = ahead.call(Path::parse_mod_style) {
-            if ahead.peek(Token![!]) && (ahead.peek2(token::Brace) || ahead.peek2(Ident)) {
+            if ahead.peek(Token![!])
+                && (ahead.peek2(token::Brace)
+                    && !(ahead.peek3(Token![.]) || ahead.peek3(Token![?]))
+                    || ahead.peek2(Ident))
+            {
                 input.advance_to(&ahead);
                 return stmt_mac(input, attrs, path);
             }
@@ -180,7 +184,6 @@ pub mod parsing {
             || input.peek(Token![fn])
             || input.peek(Token![mod])
             || input.peek(Token![type])
-            || input.peek(item::parsing::existential) && input.peek2(Token![type])
             || input.peek(Token![struct])
             || input.peek(Token![enum])
             || input.peek(Token![union]) && input.peek2(Ident)

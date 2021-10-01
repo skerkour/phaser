@@ -7,6 +7,7 @@ use http::header::{HeaderValue, CONNECTION};
 use http::{HeaderMap, Method, Version};
 use httparse::ParserConfig;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tracing::{debug, error, trace};
 
 use super::io::Buffered;
 use super::{Decoder, Encode, EncodedBuf, Encoder, Http1Transaction, ParseContext, Wants};
@@ -68,6 +69,11 @@ where
     #[cfg(feature = "server")]
     pub(crate) fn set_flush_pipeline(&mut self, enabled: bool) {
         self.io.set_flush_pipeline(enabled);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_write_strategy_queue(&mut self) {
+        self.io.set_write_strategy_queue();
     }
 
     pub(crate) fn set_max_buf_size(&mut self, max: usize) {
@@ -460,7 +466,7 @@ where
             }
         }
         match self.state.writing {
-            Writing::Init => true,
+            Writing::Init => self.io.can_headers_buf(),
             _ => false,
         }
     }
@@ -538,9 +544,8 @@ where
 
                 #[cfg(feature = "ffi")]
                 {
-                    self.state.on_informational = head
-                        .extensions
-                        .remove::<crate::ffi::OnInformational>();
+                    self.state.on_informational =
+                        head.extensions.remove::<crate::ffi::OnInformational>();
                 }
 
                 Some(encoder)
