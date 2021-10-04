@@ -33,11 +33,12 @@ async fn scan_port(hostname: &str, port: u16) -> Option<Port> {
 
     // TODO: detect protocol
     match tokio::time::timeout(timeout, TcpStream::connect(&socket_addresses[0])).await {
-        Ok(_) => Some(Port {
-            port: port,
+        Ok(Ok(_)) => Some(Port {
+            port,
             protocol: Protocol::Tcp,
             findings: Vec::new(),
         }),
+        Ok(Err(_)) => None,
         Err(_) => None,
     }
 }
